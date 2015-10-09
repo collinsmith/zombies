@@ -1,0 +1,19 @@
+[en]
+CMDS=Commands
+CMD_PREFIXES=Command Prefixes
+
+CMD_NAME_SHORT=ZM
+CMD_PRINT_COLOR_HEADER=[%L]
+
+CMD_BAD_TEAM=This command can only be used by
+CMD_UNASSIGNED=unassigned
+CMD_TERRORISTS=zombies
+CMD_CTS=humans
+CMD_SPECTATORS=spectators
+
+CMD_SAYALL_ONLY=This command only works in all-chat
+CMD_SAYTEAM_ONLY=This command only works in team-chat
+CMD_ALIVE_ONLY=You cannot use this command while dead
+CMD_DEAD_ONLY=This command only works while you're dead
+CMD_NO_ACCESS=You don't have the requires access level for this command
+CMD_BLOCKED=The command you entered was blocked

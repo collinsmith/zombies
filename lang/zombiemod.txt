@@ -1,0 +1,4 @@
+[en]
+ZM_NAME=Zombie Mod
+ZM_NAME_SHORT=ZM
+ZM_PRINT_COLOR_HEADER=[%L]
