@@ -6,9 +6,9 @@
 #include <logger>
 #include <hamsandwich>
 
-#include "include\\zm\\cs_team_changer.inc"
-#include "include\\zm\\zombiemod.inc"
-#include "include\\zm\\zm_team_mngr_const.inc"
+#include "include\\zombiemod-inc\\cs_team_changer.inc"
+#include "include\\zombiemod-inc\\zombiemod.inc"
+#include "include\\zombiemod-inc\\zm_team_mngr_const.inc"
 
 #include "include\\stocks\\flag_stocks.inc"
 #include "include\\stocks\\param_test_stocks.inc"

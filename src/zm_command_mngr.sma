@@ -8,9 +8,9 @@
 #include <cstrike>
 #include <logger>
 
-#include "include\\commandmanager\\command_manager.inc"
+#include "include\\commandmanager-inc\\command_manager.inc"
 
-#include "include\\zm\\zombiemod.inc"
+#include "include\\zombiemod-inc\\zombiemod.inc"
 
 #include "include\\stocks\\flag_stocks.inc"
 #include "include\\stocks\\path_stocks.inc"

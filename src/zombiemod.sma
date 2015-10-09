@@ -4,18 +4,18 @@
 #include <amxmodx>
 #include <logger>
 
-#include "include\\zm\\zm_cfg.inc"
-#include "include\\zm\\zm_debug.inc"
-#include "include\\zm\\zm_lang.inc"
-#include "include\\zm\\zm_stocks.inc"
-#include "include\\zm\\zm_version.inc"
-#include "include\\zm\\template\\extension_t.inc"
+#include "include\\zombiemod-inc\\zm_cfg.inc"
+#include "include\\zombiemod-inc\\zm_debug.inc"
+#include "include\\zombiemod-inc\\zm_lang.inc"
+#include "include\\zombiemod-inc\\zm_stocks.inc"
+#include "include\\zombiemod-inc\\zm_version.inc"
+#include "include\\zombiemod-inc\\template\\extension_t.inc"
 
 #include "include\\stocks\\path_stocks.inc"
 #include "include\\stocks\\string_stocks.inc"
 #include "include\\stocks\\dynamic_param_stocks.inc"
 
-#include "include\\commandmanager\\command_manager.inc"
+#include "include\\commandmanager-inc\\command_manager.inc"
 
 static Logger: g_Logger = Invalid_Logger;
 

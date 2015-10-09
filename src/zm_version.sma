@@ -7,7 +7,7 @@
 #include <fakemeta>
 #include <regex>
 
-#include "include\\zm\\zombiemod.inc"
+#include "include\\zombiemod-inc\\zombiemod.inc"
 
 #include "include\\stocks\\string_stocks.inc"
 
