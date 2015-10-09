@@ -1,0 +1,9 @@
+[submodule "src/include/zombiemod-inc"]
+	path = src/include/zombiemod-inc
+	url = https://github.com/collinsmith/zombiemod-inc.git
+[submodule "src/include/stocks"]
+	path = src/include/stocks
+	url = https://github.com/collinsmith/stocks.git
+[submodule "src/include/commandmanager-inc"]
+	path = src/include/commandmanager-inc
+	url = https://github.com/collinsmith/commandmanager-inc.git
