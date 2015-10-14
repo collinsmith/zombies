@@ -64,6 +64,7 @@ public plugin_precache() {
 #endif
     
     LoggerLogInfo(g_Logger, "Launching %s v%s...", ZM_MOD_NAME, buildId);
+    LoggerLogInfo(g_Logger, "Copyright (C) Collin \"Tirant\" Smith");
 
     new dictionary[32];
     zm_getDictonaryPath(dictionary);
