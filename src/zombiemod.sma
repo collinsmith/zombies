@@ -111,7 +111,16 @@ public plugin_init() {
     zm_onInit();
     zm_onExtensionInit();
 
-    cmd_registerCommand("version", "cmd_printVersion");
+    new desc[256];
+    formatex(desc, charsmax(desc),
+            "The current version of %s being used",
+            ZM_MOD_NAME);
+    cmd_registerCommand(
+            .alias = "version",
+            .handle = "cmd_printVersion",
+            .flags = _,
+            .desc = desc,
+            .adminFlags = _);
 }
 
 public plugin_cfg() {
