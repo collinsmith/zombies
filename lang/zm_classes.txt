@@ -1,0 +1,6 @@
+[en]
+ZM_CLASS_CLASSIC=Classic Zombie
+ZM_CLASS_CLASSIC_DESC=Balanced
+
+ZM_CLASS_FAST=Fast Zombie
+ZM_CLASS_FAST_DESC=Speed++ HP-
