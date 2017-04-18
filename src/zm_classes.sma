@@ -76,7 +76,6 @@ public plugin_natives() {
   register_native("zm_registerClass", "native_registerClass");
   register_native("zm_findClass", "native_findClass");
   register_native("zm_setClassProperty", "native_setClassProperty");
-  register_native("zm_reloadClass", "native_reloadClass");
   register_native("zm_isClassRegistered", "native_isClassRegistered");
 
   register_native("zm_getUserClass", "native_getUserClass");
@@ -87,6 +86,7 @@ public plugin_natives() {
 
   register_native("zm_registerClassLoader", "native_registerClassLoader");
   register_native("zm_loadClass", "native_loadClass");
+  //register_native("zm_reloadClass", "native_reloadClass");
 }
 
 public zm_onInit() {
