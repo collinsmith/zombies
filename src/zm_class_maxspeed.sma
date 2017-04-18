@@ -12,7 +12,7 @@
   //#define DEBUG_MAXSPEED
 #endif
 
-#define EXTENSION_NAME "Class Gravity"
+#define EXTENSION_NAME "Class Speed"
 #define VERSION_STRING "1.0.0"
 
 const Float: RAW_VALUE_THRESHOLD = 10.0;
