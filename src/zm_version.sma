@@ -54,9 +54,9 @@ public zm_onInitExtension() {
   new version[32];
   new const latestVersion = zm_getLatestVersion();
   if (latestVersion > zm_getVersionId()) {
-    LoggerLogInfo(logger, "A new version of ZM is available: %s", version);
+    LoggerLogInfo(logger, "A new version of %L is available: %s", LANG_SERVER, ZM_NAME, version);
   } else {
-    LoggerLogInfo(logger, "You have the latest verion of ZM installed");
+    LoggerLogInfo(logger, "You have the latest verion of %L installed", LANG_SERVER, ZM_NAME);
   }
 #endif
 }
