@@ -17,7 +17,7 @@
 #define EXTENSION_NAME "Version"
 #define VERSION_STRING "1.0.0"
 
-#define CHECK_VERSION
+#define CHECK_FOR_UPDATES
 
 static Logger: logger = Invalid_Logger;
 #pragma unused logger
@@ -48,7 +48,7 @@ public zm_onInitExtension() {
       .handle = "onPrintVersion",
       .desc = desc);
 
-#if defined CHECK_VERSION
+#if defined CHECK_FOR_UPDATES
   LoggerLogInfo(logger, "Checking for updates...");
 
   new version[32];
