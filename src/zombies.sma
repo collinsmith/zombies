@@ -30,7 +30,7 @@
 /** Throws an error if trying to register extensions before onInitExtension */
 #define ENFORCE_REGISTRATION_AFTER_INIT
 /** The initial number of extensions to allocate */
-#define INITIAL_EXTENSIONS_SIZE 8
+#define INITIAL_EXTENSIONS_SIZE 16
 
 static Logger: logger = Invalid_Logger;
 
@@ -229,7 +229,7 @@ public onPrintExtensions(id) {
     }
     
     new fmt[32];
-    formatex(fmt, charsmax(fmt), "%%d. %%%ds %%%ds %%s", maxName, maxVersion);
+    formatex(fmt, charsmax(fmt), "%%2d. %%%ds %%%ds %%s", maxName, maxVersion);
 
     for (new i = 0; i < numExtensions; i++) {
       ArrayGetArray(extensions, i, extension);
