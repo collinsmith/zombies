@@ -1,10 +1,5 @@
 #include <logger>
 
-#pragma ctrlchar 94
-#include "../lib/curl/curl.inc"
-#include "../lib/json/json.inc"
-#pragma ctrlchar 92
-
 #include "include/package_manager.inc"
 
 #include "include/stocks/path_stocks.inc"
