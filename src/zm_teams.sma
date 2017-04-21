@@ -62,9 +62,7 @@ static onAfterCured = INVALID_HANDLE;
 static onApply = INVALID_HANDLE;
 #if defined USE_TEAM_PROVIDERS
 static onProvideTeamChange = INVALID_HANDLE;
-#if defined DEBUG_PROVIDER
 static teamChangeProvider = INVALID_PLUGIN_ID;
-#endif
 #endif
 
 static pFlags[MAX_PLAYERS + 1];
@@ -585,7 +583,7 @@ public onPrintHumans(id) {
 #endif
 
 
-#if defined USE_TEAM_PROVIDERS && defined DEBUG_PROVIDER
+#if defined USE_TEAM_PROVIDERS
 public onPrintTeamProvider(id) {
   new plugin[32];
   get_plugin(teamChangeProvider, .filename = plugin, .len1 = charsmax(plugin));
@@ -717,9 +715,9 @@ public native_setTeamChangeProvider(plugin, numParams) {
   new callback[32];
   get_string(1, callback, charsmax(callback));
   onProvideTeamChange = CreateOneForward(plugin, callback, FP_CELL, FP_CELL);
-#if defined DEBUG_PROVIDER
   teamChangeProvider = plugin;
-  
+
+#if defined DEBUG_PROVIDER  
   new name[32];
   get_plugin(plugin, .filename = name, .len1 = charsmax(name));
   name[strlen(name) - 5] = EOS;
