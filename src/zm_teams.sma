@@ -585,7 +585,7 @@ public onPrintHumans(id) {
 #endif
 
 
-#if defined USE_TEAM_PROVIDERS
+#if defined USE_TEAM_PROVIDERS && defined DEBUG_PROVIDER
 public onPrintTeamProvider(id) {
   new plugin[32];
   get_plugin(teamChangeProvider, .filename = plugin, .len1 = charsmax(plugin));

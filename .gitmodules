@@ -7,3 +7,6 @@
 [submodule "src/include/cs_weapon_restrictions"]
 	path = src/include/cs_weapon_restrictions
 	url = https://github.com/collinsmith/cs_weapon_restrictions-inc
+[submodule "src/include/zm"]
+	path = src/include/zm
+	url = https://github.com/collinsmith/zombies-inc

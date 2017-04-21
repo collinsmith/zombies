@@ -130,16 +130,19 @@ public onItemSelected(id, menu, item) {
     return PLUGIN_HANDLED;
   }
 
-  new name[class_prop_key_length + 1];
 #if defined CACHE_MENU_ITEMS
   new const Trie: class = ArrayGetCell(menuItems, item);
 #else
+  new name[class_prop_key_length + 1];
   new access, callback;
   menu_item_getinfo(classMenu, item, access, name, charsmax(name), .callback=callback);
   new const Trie: class = zm_findClass(name);
 #endif
 
 #if defined DEBUG_SELECTION
+#if !defined name
+  new name[class_prop_key_length + 1];
+#endif
   zm_getClassProperty(class, ZM_CLASS_NAME, name, charsmax(name));
   LoggerLogDebug(logger, "%N selected \"%s\" (%d)", id, name, class);
   zm_setUserClass(id, class, true);
