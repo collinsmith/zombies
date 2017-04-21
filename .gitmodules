@@ -1,6 +1,3 @@
-[submodule "src/include/zm"]
-	path = src/include/zm
-	url = https://github.com/collinsmith/zombies-inc
 [submodule "src/include/stocks"]
 	path = src/include/stocks
 	url = https://github.com/collinsmith/stocks

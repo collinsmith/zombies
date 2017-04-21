@@ -96,10 +96,10 @@ public zm_onInit() {
 public zm_onInitExtension() {
   new name[32];
   formatex(name, charsmax(name), "[%L] %s", LANG_SERVER, ZM_NAME_SHORT, EXTENSION_NAME);
+  register_plugin(name, VERSION_STRING, "Tirant");
 
   new buildId[32];
   getBuildId(buildId, charsmax(buildId));
-  register_plugin(name, buildId, "Tirant");
   zm_registerExtension(
       .name = EXTENSION_NAME,
       .version = buildId,
@@ -113,9 +113,9 @@ public zm_onInitExtension() {
   createForwards();
   registerConCmds();
   
-  new path[256];
-  zm_getConfigsDir(path, charsmax(path));
-  BuildPath(path, charsmax(path), path, "classes");
+  new path[256], len;
+  len = zm_getConfigsDir(path, charsmax(path));
+  resolvePath(path, charsmax(path), len, "classes");
   loadClasses(path, true);
 }
 
@@ -893,9 +893,9 @@ public native_loadClass(plugin, numParams) {
   new relativePath[256];
   get_string(1, relativePath, charsmax(relativePath));
 
-  new path[256];
-  zm_getConfigsDir(path, charsmax(path));
-  new len = BuildPath(path, charsmax(path), path, relativePath);
+  new path[256], len;
+  len = zm_getConfigsDir(path, charsmax(path));
+  len = resolvePath(path, charsmax(path), len, relativePath);
 
   if (file_exists(path)) {
     loadClass(path, len);

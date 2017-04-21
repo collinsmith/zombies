@@ -24,10 +24,10 @@ public zm_onInit() {
 public zm_onInitExtension() {
   new name[32];
   formatex(name, charsmax(name), "[%L] %s", LANG_SERVER, ZM_NAME_SHORT, EXTENSION_NAME);
+  register_plugin(name, VERSION_STRING, "Tirant");
   
   new buildId[32];
   getBuildId(buildId, charsmax(buildId));
-  register_plugin(name, buildId, "Tirant");
   zm_registerExtension(
       .name = EXTENSION_NAME,
       .version = buildId,

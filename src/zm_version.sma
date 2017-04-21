@@ -17,8 +17,6 @@
 #define EXTENSION_NAME "Version"
 #define VERSION_STRING "1.0.0"
 
-#define CHECK_FOR_UPDATES
-
 static Logger: logger = Invalid_Logger;
 #pragma unused logger
 
@@ -47,18 +45,6 @@ public zm_onInitExtension() {
       .alias = "version",
       .handle = "onPrintVersion",
       .desc = desc);
-
-#if defined CHECK_FOR_UPDATES
-  LoggerLogInfo(logger, "Checking for updates...");
-
-  new version[32];
-  new const latestVersion = zm_getLatestVersion();
-  if (latestVersion > zm_getVersionId()) {
-    LoggerLogInfo(logger, "A new version of %L is available: %s", LANG_SERVER, ZM_NAME, version);
-  } else {
-    LoggerLogInfo(logger, "You have the latest verion of %L installed", LANG_SERVER, ZM_NAME);
-  }
-#endif
 }
 
 stock getBuildId(buildId[], len) {
