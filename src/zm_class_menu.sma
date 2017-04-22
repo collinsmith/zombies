@@ -32,8 +32,6 @@
 #define MENU_ITEM_LENGTH 63
 #define CACHE_MENU_ITEMS
 
-static Logger: logger = Invalid_Logger;
-
 static fwReturn = 0;
 static onBeforeClassMenuDisplayed = INVALID_HANDLE;
 static onClassMenuDisplayed = INVALID_HANDLE;
@@ -53,13 +51,14 @@ public plugin_natives() {
 }
 
 public zm_onInit() {
-  logger = zm_getLogger();
+  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
+  LoggerDestroy(oldLogger);
 
   classMenu = menu_create(NULL, "onItemSelected");
   classMenuItem = menu_makecallback("isItemEnabled");
 #if defined DEBUG_CONSTRUCTION
-  LoggerLogDebug(logger, "classMenu=%d", classMenu);
-  LoggerLogDebug(logger, "classMenuItem=%d", classMenuItem);
+  LoggerLogDebug("classMenu=%d", classMenu);
+  LoggerLogDebug("classMenuItem=%d", classMenuItem);
 #endif
 }
 
@@ -78,7 +77,7 @@ public zm_onInitExtension() {
   new dictionary[] = "common.txt";
   register_dictionary(dictionary);
 #if defined DEBUG_I18N
-  LoggerLogDebug(logger, "Registering dictionary file \"%s\"", dictionary);
+  LoggerLogDebug("Registering dictionary file \"%s\"", dictionary);
 #endif
 
   cmd_registerCommand(
@@ -89,8 +88,7 @@ public zm_onInitExtension() {
   zm_registerConCmd(
       .command = "class",
       .callback = "onClassMenu",
-      .desc = "Displays the class selection menu",
-      .logger = logger);
+      .desc = "Displays the class selection menu");
 }
 
 stock getBuildId(buildId[], len) {
@@ -104,7 +102,7 @@ public zm_onClassRegistered(const name[], const Trie: class) {
   if (!menuItems) {
     menuItems = ArrayCreate();
 #if defined DEBUG_CONSTRUCTION
-    LoggerLogDebug(logger, "Initialized menuItems container as cellarray %d", menuItems);
+    LoggerLogDebug("Initialized menuItems container as cellarray %d", menuItems);
 #endif
   }
   
@@ -115,7 +113,7 @@ public zm_onClassRegistered(const name[], const Trie: class) {
 #endif
 
 #if defined DEBUG_CONSTRUCTION
-  LoggerLogDebug(logger, "Added \"%s\" to class menu", name);
+  LoggerLogDebug("Added \"%s\" to class menu", name);
 #if defined CACHE_MENU_ITEMS
   new access, tmp[class_prop_key_length + 1], callback;
   menu_item_getinfo(classMenu, item, access, tmp, charsmax(tmp), .callback=callback);
@@ -144,7 +142,7 @@ public onItemSelected(id, menu, item) {
   new name[class_prop_key_length + 1];
 #endif
   zm_getClassProperty(class, ZM_CLASS_NAME, name, charsmax(name));
-  LoggerLogDebug(logger, "%N selected \"%s\" (%d)", id, name, class);
+  LoggerLogDebug("%N selected \"%s\" (%d)", id, name, class);
   zm_setUserClass(id, class, true);
 #else
   // TODO: This is required for testing until respawn command is added
@@ -172,18 +170,18 @@ public isItemEnabled(id, menu, item) {
 zm_isClassEnabled(id, Trie: class, name[]) {
   if (isClassEnabled == INVALID_HANDLE) {
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "Creating forward for zm_isClassEnabled");
+    LoggerLogDebug("Creating forward for zm_isClassEnabled");
 #endif
     isClassEnabled = CreateMultiForward(
         "zm_isClassEnabled", ET_STOP2,
         FP_CELL, FP_CELL, FP_STRING);
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "isClassEnabled = %d", isClassEnabled);
+    LoggerLogDebug("isClassEnabled = %d", isClassEnabled);
 #endif
   }
   
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_isClassEnabled(%d, class=%d, \"%s\") for %N", id, class, name, id);
+  LoggerLogDebug("Forwarding zm_isClassEnabled(%d, class=%d, \"%s\") for %N", id, class, name, id);
 #endif
   ExecuteForward(isClassEnabled, fwReturn, id, class, name);
   return fwReturn;
@@ -192,18 +190,18 @@ zm_isClassEnabled(id, Trie: class, name[]) {
 zm_onBeforeClassMenuDisplayed(id, bool: exitable) {
   if (onBeforeClassMenuDisplayed == INVALID_HANDLE) {
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "Creating forward for zm_onBeforeClassMenuDisplayed");
+    LoggerLogDebug("Creating forward for zm_onBeforeClassMenuDisplayed");
 #endif
     onBeforeClassMenuDisplayed = CreateMultiForward(
         "zm_onBeforeClassMenuDisplayed", ET_STOP,
         FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "onBeforeClassMenuDisplayed = %d", onBeforeClassMenuDisplayed);
+    LoggerLogDebug("onBeforeClassMenuDisplayed = %d", onBeforeClassMenuDisplayed);
 #endif
   }
   
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_onBeforeClassMenuDisplayed(%d, exitable=%s) for %N", id, exitable ? TRUE : FALSE, id);
+  LoggerLogDebug("Forwarding zm_onBeforeClassMenuDisplayed(%d, exitable=%s) for %N", id, exitable ? TRUE : FALSE, id);
 #endif
   ExecuteForward(onBeforeClassMenuDisplayed, fwReturn, id, exitable);
   return fwReturn;
@@ -212,18 +210,18 @@ zm_onBeforeClassMenuDisplayed(id, bool: exitable) {
 zm_onClassMenuDisplayed(id, bool: exitable) {
   if (onClassMenuDisplayed == INVALID_HANDLE) {
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "Creating forward for zm_onClassMenuDisplayed");
+    LoggerLogDebug("Creating forward for zm_onClassMenuDisplayed");
 #endif
     onClassMenuDisplayed = CreateMultiForward(
         "zm_onClassMenuDisplayed", ET_CONTINUE,
         FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "onClassMenuDisplayed = %d", onClassMenuDisplayed);
+    LoggerLogDebug("onClassMenuDisplayed = %d", onClassMenuDisplayed);
 #endif
   }
   
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_onClassMenuDisplayed(%d, exitable=%s) for %N", id, exitable ? TRUE : FALSE, id);
+  LoggerLogDebug("Forwarding zm_onClassMenuDisplayed(%d, exitable=%s) for %N", id, exitable ? TRUE : FALSE, id);
 #endif
   ExecuteForward(onClassMenuDisplayed, fwReturn, id, exitable);
 }
@@ -231,7 +229,7 @@ zm_onClassMenuDisplayed(id, bool: exitable) {
 bool: showClassMenu(id, bool: exitable) {
   new ZM_Team: team = zm_getUserTeam(id);
   if (team == ZM_TEAM_UNASSIGNED || team == ZM_TEAM_SPECTATOR) {
-    ThrowIllegalStateException(logger, "%N must belong to a real team, currently: %s", id, ZM_Team_Names[team]);
+    ThrowIllegalStateException(This_Logger, "%N must belong to a real team, currently: %s", id, ZM_Team_Names[team]);
     return false;
   }
 
@@ -239,11 +237,11 @@ bool: showClassMenu(id, bool: exitable) {
   new menuHandle, newMenuHandle;
   new viewingMenu = player_menu_info(id, menuHandle, newMenuHandle);
 #if defined DEBUG_DISPLAY
-    LoggerLogDebug(logger, "%N viewingMenu = %d", id, viewingMenu);
+    LoggerLogDebug("%N viewingMenu = %d", id, viewingMenu);
 #endif
   if (viewingMenu && (menuHandle > 0 || newMenuHandle != INVALID_HANDLE)) {
 #if defined DEBUG_DISPLAY
-    LoggerLogDebug(logger, "%N already viewing menu: %d (menu=%d, newmenu=%d)",
+    LoggerLogDebug("%N already viewing menu: %d (menu=%d, newmenu=%d)",
         id, viewingMenu, menuHandle, newMenuHandle);
 #endif
     return false;
@@ -252,7 +250,7 @@ bool: showClassMenu(id, bool: exitable) {
   fwReturn = zm_onBeforeClassMenuDisplayed(id, exitable);
   if (fwReturn == PLUGIN_HANDLED && exitable) {
 #if defined DEBUG_DISPLAY
-    LoggerLogDebug(logger, "Class menu blocked for %N", id);
+    LoggerLogDebug("Class menu blocked for %N", id);
 #endif
     return false;
   }
@@ -260,7 +258,7 @@ bool: showClassMenu(id, bool: exitable) {
   personalizeMenu(id, exitable);
   menu_display(id, classMenu);
 #if defined DEBUG_DISPLAY
-  LoggerLogDebug(logger, "Displaying class menu on %N", id);
+  LoggerLogDebug("Displaying class menu on %N", id);
 #endif
 
   zm_onClassMenuDisplayed(id, exitable);
@@ -318,13 +316,13 @@ stock bool: operator=(value) return value > 0;
 
 //native bool: zm_showClassMenu(const id, const bool: exitable);
 public bool: native_showClassMenu(plugin, numParams) {
-  if (!numParamsEqual(2, numParams, logger)) {
+  if (!numParamsEqual(2, numParams)) {
     return false;
   }
 
   new const id = get_param(1);
   if (!isValidId(id)) {
-    ThrowIllegalArgumentException(logger, "Invalid player id specified: %d", id);
+    ThrowIllegalArgumentException(This_Logger, "Invalid player id specified: %d", id);
     return false;
   }
 

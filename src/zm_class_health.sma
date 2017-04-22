@@ -15,10 +15,9 @@
 #define EXTENSION_NAME "Class Health"
 #define VERSION_STRING "1.0.0"
 
-static Logger: logger = Invalid_Logger;
-
 public zm_onInit() {
-  logger = zm_getLogger();
+  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
+  LoggerDestroy(oldLogger);
 }
 
 public zm_onInitExtension() {
@@ -42,7 +41,7 @@ public zm_onApply(const id) {
   new const Class: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_HEALTH
-    LoggerLogDebug(logger, "%N doesn't have a class, ignoring", id);
+    LoggerLogDebug("%N doesn't have a class, ignoring", id);
 #endif
     return;
   }
@@ -53,7 +52,7 @@ public zm_onApply(const id) {
 #if defined DEBUG_HEALTH
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogDebug(logger, "Ignoring health change for %N because \"%s\" does not contain a value for \"%s\"",
+    LoggerLogDebug("Ignoring health change for %N because \"%s\" does not contain a value for \"%s\"",
         id, key, ZM_CLASS_HEALTH);
     return;
 #endif
@@ -63,19 +62,19 @@ public zm_onApply(const id) {
   if (health < 0.0) {
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogError(logger,"Invalid health value for class \"%s\". Health cannot be less than 0.0: %.0f", key, health);
+    LoggerLogError("Invalid health value for class \"%s\". Health cannot be less than 0.0: %.0f", key, health);
     return;
   } else if (health == 0.0) {
 #if defined DEBUG_HEALTH
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogDebug(logger, "Ignoring health change for %N because health of \"%s\" is %.0f", id, key, health);
+    LoggerLogDebug("Ignoring health change for %N because health of \"%s\" is %.0f", id, key, health);
 #endif
     return;
   }
 
 #if defined DEBUG_HEALTH
-  LoggerLogDebug(logger, "Setting health of %N to %.0f", id, health);
+  LoggerLogDebug("Setting health of %N to %.0f", id, health);
 #endif
   set_pev(id, pev_health, health);
 }

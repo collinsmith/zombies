@@ -22,11 +22,9 @@
 #define EXTENSION_NAME "Class Player Models"
 #define VERSION_STRING "1.0.0"
 
-static Logger: logger = Invalid_Logger;
-#pragma unused logger
-
 public zm_onInit() {
-  logger = zm_getLogger();
+  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
+  LoggerDestroy(oldLogger);
 }
 
 public zm_onInitExtension() {
@@ -51,15 +49,15 @@ public zm_onClassRegistered(const name[], const Class: class) {
   zm_getClassProperty(class, ZM_CLASS_MODEL, model, charsmax(model));
 
   new path[256];
-  BuildPlayerModelPath(path, charsmax(path), model, logger);
-  precacheModel(path, logger);
+  BuildPlayerModelPath(path, charsmax(path), model);
+  precacheModel(path);
 }
 
 public zm_onApply(const id) {
   new const Class: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_APPLICATION
-    LoggerLogDebug(logger, "%N doesn't have a class, resetting", id);
+    LoggerLogDebug("%N doesn't have a class, resetting", id);
 #endif
     fm_reset_user_model(id);
     return;
@@ -69,7 +67,7 @@ public zm_onApply(const id) {
   zm_getClassProperty(class, ZM_CLASS_MODEL, value, charsmax(value));
 
 #if defined DEBUG_APPLICATION
-  LoggerLogDebug(logger, "Changing player model of %N to \"%s\"", id, value);
+  LoggerLogDebug("Changing player model of %N to \"%s\"", id, value);
 #endif
   
   // TODO: Support custom player model indexes

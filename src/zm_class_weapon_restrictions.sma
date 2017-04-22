@@ -21,16 +21,14 @@
 
 #define FAST_WEAPONS
 
-static Logger: logger = Invalid_Logger;
-#pragma unused logger
-
 static Trie: weapons;
 
 public zm_onInit() {
-  logger = zm_getLogger();
+  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
+  LoggerDestroy(oldLogger);
 
 #if defined DEBUG_LOOKUP
-  LoggerLogDebug(logger, "populating weapon lookup table");
+  LoggerLogDebug("populating weapon lookup table");
 #endif
   weapons = TrieCreate();
 #if defined FAST_WEAPONS
@@ -96,7 +94,7 @@ public zm_onApply(const id) {
   new const Class: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_RESTRICTIONS
-    LoggerLogDebug(logger, "%N doesn't have a class, resetting", id);
+    LoggerLogDebug("%N doesn't have a class, resetting", id);
 #endif
     cs_resetWeaponRestrictions(id);
     return;

@@ -40,8 +40,6 @@
 /** Log a warning if registering an extension for a class loader which will overwrite an existing one */
 #define WARN_ON_EXTENSION_OVERWRITE
 
-static Logger: logger = Invalid_Logger;
-
 static fwReturn = 0;
 static onBeforeClassChanged = INVALID_HANDLE;
 static onClassChanged = INVALID_HANDLE;
@@ -90,7 +88,8 @@ public plugin_natives() {
 }
 
 public zm_onInit() {
-  logger = zm_getLogger();
+  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
+  LoggerDestroy(oldLogger);
 }
 
 public zm_onInitExtension() {
@@ -107,7 +106,7 @@ public zm_onInitExtension() {
 
   register_dictionary(CLASSES_DICTIONARY);
 #if defined DEBUG_I18N
-  LoggerLogDebug(logger, "Registering dictionary file \"%s\"", CLASSES_DICTIONARY);
+  LoggerLogDebug("Registering dictionary file \"%s\"", CLASSES_DICTIONARY);
 #endif
 
   createForwards();
@@ -128,16 +127,14 @@ stock registerConCmds() {
   zm_registerConCmd(
       .command = "classes",
       .callback = "onPrintClasses",
-      .desc = "Lists the registered classes of ZM",
-      .logger = logger);
+      .desc = "Lists the registered classes of ZM");
 #endif
 
 #if defined DEBUG_LOADERS
   zm_registerConCmd(
       .command = "loaders",
       .callback = "onPrintLoaders",
-      .desc = "Lists the registered class loaders of ZM",
-      .logger = logger);
+      .desc = "Lists the registered class loaders of ZM");
 #endif
 }
 
@@ -154,57 +151,57 @@ createClassChangeForwards() {
 createOnBeforeClassChanged() {
 #if defined DEBUG_FORWARDS
   assert onBeforeClassChanged == INVALID_HANDLE;
-  LoggerLogDebug(logger, "Creating forward zm_onBeforeClassChanged");
+  LoggerLogDebug("Creating forward zm_onBeforeClassChanged");
 #endif
   onBeforeClassChanged = CreateMultiForward(
       "zm_onBeforeClassChanged", ET_STOP,
       FP_CELL, FP_CELL, FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "onBeforeClassChanged = %d", onBeforeClassChanged);
+  LoggerLogDebug("onBeforeClassChanged = %d", onBeforeClassChanged);
 #endif
 }
 
 createOnClassChanged() {
 #if defined DEBUG_FORWARDS
   assert onClassChanged == INVALID_HANDLE;
-  LoggerLogDebug(logger, "Creating forward zm_onClassChanged");
+  LoggerLogDebug("Creating forward zm_onClassChanged");
 #endif
   onClassChanged = CreateMultiForward(
       "zm_onClassChanged", ET_CONTINUE,
       FP_CELL, FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "onClassChanged = %d", onClassChanged);
+  LoggerLogDebug("onClassChanged = %d", onClassChanged);
 #endif
 }
 
 createOnAfterClassChanged() {
 #if defined DEBUG_FORWARDS
   assert onAfterClassChanged == INVALID_HANDLE;
-  LoggerLogDebug(logger, "Creating forward zm_onAfterClassChanged");
+  LoggerLogDebug("Creating forward zm_onAfterClassChanged");
 #endif
   onAfterClassChanged = CreateMultiForward(
       "zm_onAfterClassChanged", ET_CONTINUE,
       FP_CELL, FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "onAfterClassChanged = %d", onAfterClassChanged);
+  LoggerLogDebug("onAfterClassChanged = %d", onAfterClassChanged);
 #endif
 }
 
 zm_onClassRegistered(name[], Trie: class) {
   if (onClassRegistered == INVALID_HANDLE) {
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "Creating forward for zm_onClassRegistered");
+    LoggerLogDebug("Creating forward for zm_onClassRegistered");
 #endif
     onClassRegistered = CreateMultiForward(
         "zm_onClassRegistered", ET_CONTINUE,
         FP_STRING, FP_CELL);
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "onClassRegistered = %d", onClassRegistered);
+    LoggerLogDebug("onClassRegistered = %d", onClassRegistered);
 #endif
   }
 
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_onClassRegistered for %s", name);
+  LoggerLogDebug("Forwarding zm_onClassRegistered for %s", name);
 #endif
   ExecuteForward(onClassRegistered, fwReturn, name, class);
 }
@@ -212,18 +209,18 @@ zm_onClassRegistered(name[], Trie: class) {
 zm_onBeforeClassPropertyChanged(Trie: class, key[], oldValue[], newValue[]) {
   if (onBeforeClassPropertyChanged == INVALID_HANDLE) {
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "Creating forward for zm_onBeforeClassPropertyChanged");
+    LoggerLogDebug("Creating forward for zm_onBeforeClassPropertyChanged");
 #endif
     onBeforeClassPropertyChanged = CreateMultiForward(
         "zm_onBeforeClassPropertyChanged", ET_STOP,
         FP_CELL, FP_STRING, FP_STRING, FP_STRING);
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "onBeforeClassPropertyChanged = %d", onBeforeClassPropertyChanged);
+    LoggerLogDebug("onBeforeClassPropertyChanged = %d", onBeforeClassPropertyChanged);
 #endif
   }
   
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_onBeforeClassFieldChanged for %d: \"%s\"", class, key);
+  LoggerLogDebug("Forwarding zm_onBeforeClassFieldChanged for %d: \"%s\"", class, key);
 #endif
   ExecuteForward(onBeforeClassPropertyChanged, fwReturn, class, key, oldValue, newValue);
   return fwReturn;
@@ -232,18 +229,18 @@ zm_onBeforeClassPropertyChanged(Trie: class, key[], oldValue[], newValue[]) {
 zm_onClassPropertyChanged(Trie: class, key[], oldValue[], newValue[]) {
   if (onClassPropertyChanged == INVALID_HANDLE) {
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "Creating forward for zm_onClassPropertyChanged");
+    LoggerLogDebug("Creating forward for zm_onClassPropertyChanged");
 #endif
     onClassPropertyChanged = CreateMultiForward(
         "zm_onClassPropertyChanged", ET_CONTINUE,
         FP_CELL, FP_STRING, FP_STRING, FP_STRING);
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "onClassPropertyChanged = %d", onClassPropertyChanged);
+    LoggerLogDebug("onClassPropertyChanged = %d", onClassPropertyChanged);
 #endif
   }
   
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_onClassPropertyChanged for %d: \"%s\"", class, key);
+  LoggerLogDebug("Forwarding zm_onClassPropertyChanged for %d: \"%s\"", class, key);
 #endif
   ExecuteForward(onClassPropertyChanged, fwReturn, class, key, oldValue, newValue);
   return fwReturn;
@@ -252,7 +249,7 @@ zm_onClassPropertyChanged(Trie: class, key[], oldValue[], newValue[]) {
 zm_onBeforeClassChanged(id, Trie: class, bool: immediate, bool: blockable) {
   assert onBeforeClassChanged != INVALID_HANDLE;
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_onBeforeClassChanged(%d, %d, immediate=%s, blockable=%s) for %N",
+  LoggerLogDebug("Forwarding zm_onBeforeClassChanged(%d, %d, immediate=%s, blockable=%s) for %N",
       id, class, immediate ? TRUE : FALSE, blockable ? TRUE : FALSE, id);
 #endif
   ExecuteForward(onBeforeClassChanged, fwReturn, id, class, immediate, blockable);
@@ -261,7 +258,7 @@ zm_onBeforeClassChanged(id, Trie: class, bool: immediate, bool: blockable) {
 
 zm_onClassChanged(id, Trie: class, name[], bool: immediate) {
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Calling zm_onClassChanged(%d, %s, immediate=%s) for %N",
+  LoggerLogDebug("Calling zm_onClassChanged(%d, %s, immediate=%s) for %N",
       id, name, immediate ? TRUE : FALSE, id);
 #else
   #pragma unused name
@@ -271,7 +268,7 @@ zm_onClassChanged(id, Trie: class, name[], bool: immediate) {
 
 zm_onAfterClassChanged(id, Trie: class, name[], bool: immediate) {
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Calling zm_onAfterClassChanged(%d, %s, immediate=%s) for %N",
+  LoggerLogDebug("Calling zm_onAfterClassChanged(%d, %s, immediate=%s) for %N",
       id, name, immediate ? TRUE : FALSE, id);
 #else
   #pragma unused name
@@ -304,7 +301,7 @@ apply(const id, const Trie: class) {
     copy(oldClassName, charsmax(oldClassName), NULL);
   }
 
-  LoggerLogDebug(logger, "%N changed class from %s to %s", id, oldClassName, newClassName);
+  LoggerLogDebug("%N changed class from %s to %s", id, oldClassName, newClassName);
 #endif
   pClass[id] = class;
   zm_refresh(id);
@@ -316,20 +313,20 @@ public zm_onApply(const id) {
     apply(id, nextClass);
     pNextClass[id] = Invalid_Trie;
 #if defined DEBUG_CLASS_CHANGES
-    LoggerLogDebug(logger, "pNextClass[%d] = Invalid_Trie", id);
+    LoggerLogDebug("pNextClass[%d] = Invalid_Trie", id);
 #endif
   }
 }
 
 loadClasses(path[] = "", bool: recursive = false) {
 #if defined DEBUG_LOADERS
-  LoggerLogDebug(logger, "Loading classes in \"%s\"", path);
+  LoggerLogDebug("Loading classes in \"%s\"", path);
 #endif
 
   new file[32], len;
   new dir = open_dir(path, file, charsmax(file));
   if (!dir) {
-    LoggerLogError(logger, "Failed to open \"%s\" (not found or unable to open)", path);
+    LoggerLogError("Failed to open \"%s\" (not found or unable to open)", path);
     return;
   }
 
@@ -362,14 +359,14 @@ loadClasses(path[] = "", bool: recursive = false) {
 loadClass(path[] = "", len) {
 #if defined DEBUG_LOADERS
   assert classLoaders;
-  LoggerLogDebug(logger, "Parsing class file \"%s\"", path);
+  LoggerLogDebug("Parsing class file \"%s\"", path);
 #endif
   
   // TODO: turn this into a file util stock
   new extension[32];
   for (new i = len - 1; i >= 0; i--) {
     if (path[i] == PATH_SEPARATOR) {
-      LoggerLogWarning(logger, "Failed to load \"%s\", no extension", path);
+      LoggerLogWarning("Failed to load \"%s\", no extension", path);
       return;
     } else if (path[i] == '.') {
       copy(extension, charsmax(extension), path[i + 1]);
@@ -380,12 +377,12 @@ loadClass(path[] = "", len) {
   new onLoadClass;
   new bool: keyExists = TrieGetCell(classLoaders, extension, onLoadClass);
   if (!keyExists) {
-    LoggerLogWarning(logger, "Failed to load \"%s\", no class loader registered for \"%s\"", path, extension);
+    LoggerLogWarning("Failed to load \"%s\", no class loader registered for \"%s\"", path, extension);
     return;
   }
 
 #if defined DEBUG_LOADERS
-  LoggerLogDebug(logger, "Forwarding to class loader %d", onLoadClass);
+  LoggerLogDebug("Forwarding to class loader %d", onLoadClass);
 #endif
   ExecuteForward(onLoadClass, fwReturn, path, extension);
 }
@@ -478,24 +475,24 @@ public onPrintLoaders(id) {
 //native bool: zm_registerClass(const Trie: class, const bool: replace = true);
 public bool: native_registerClass(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(2, numParams, logger)) {
+  if (!numParamsEqual(2, numParams)) {
     return false;
   }
 #endif
 
   new const Trie: class = get_param(1);
   if (!class) {
-    ThrowIllegalArgumentException(logger, "Invalid class specified: %d", class);
+    ThrowIllegalArgumentException(This_Logger, "Invalid class specified: %d", class);
     return false;
   }
 
   new bool: keyExists, len;
   keyExists = TrieGetString(class, ZM_CLASS_NAME, key, charsmax(key), len);
   if (!keyExists) {
-    ThrowIllegalArgumentException(logger, "celltrie %d must contain a value for \"%s\"", class, ZM_CLASS_NAME);
+    ThrowIllegalArgumentException(This_Logger, "celltrie %d must contain a value for \"%s\"", class, ZM_CLASS_NAME);
     return false;
   } else if (len == 0) {
-    ThrowIllegalArgumentException(logger, "celltrie %d cannot have an empty value for \"%s\"", class, ZM_CLASS_NAME);
+    ThrowIllegalArgumentException(This_Logger, "celltrie %d cannot have an empty value for \"%s\"", class, ZM_CLASS_NAME);
     return false;
   }
 
@@ -503,7 +500,7 @@ public bool: native_registerClass(plugin, numParams) {
     classes = TrieCreate();
 #if defined DEBUG_EXTENSIONS
     assert classes;
-    LoggerLogDebug(logger, "Initialized classes container as celltrie %d", classes);
+    LoggerLogDebug("Initialized classes container as celltrie %d", classes);
 #endif
   }
 
@@ -514,11 +511,11 @@ public bool: native_registerClass(plugin, numParams) {
   new const bool: replace = get_param(2);
   if (keyExists) {
     if (!replace) {
-      ThrowIllegalArgumentException(logger, "Class named [%s] \"%s\" already exists!", key, value);
+      ThrowIllegalArgumentException(This_Logger, "Class named [%s] \"%s\" already exists!", key, value);
       return false;
 #if defined WARN_ON_CLASS_OVERWRITE
     } else {
-      LoggerLogWarning(logger, "Overwriting class [%s] \"%s\" (%d -> %d)", key, value, oldClass, class);
+      LoggerLogWarning("Overwriting class [%s] \"%s\" (%d -> %d)", key, value, oldClass, class);
 #endif
     }
   }
@@ -528,8 +525,8 @@ public bool: native_registerClass(plugin, numParams) {
 #if defined DEBUG_REGISTRATION
   new dst[2048];
   TrieToString(class, dst, charsmax(dst));
-  LoggerLogDebug(logger, "Class: %s", dst);
-  LoggerLogDebug(logger, "Registered class [%s] \"%s\" as Trie: %d", key, value, class);
+  LoggerLogDebug("Class: %s", dst);
+  LoggerLogDebug("Registered class [%s] \"%s\" as Trie: %d", key, value, class);
 #endif
 
   zm_onClassRegistered(key, class);
@@ -539,13 +536,13 @@ public bool: native_registerClass(plugin, numParams) {
 //native Trie: zm_findClass(const name[]);
 public Trie: native_findClass(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams, logger)) {
+  if (!numParamsEqual(1, numParams)) {
     return Invalid_Trie;
   }
 #endif
 
   if (!classes) {
-    LoggerLogWarning(logger, "Calling zm_findClass before any classes have been registered");
+    LoggerLogWarning("Calling zm_findClass before any classes have been registered");
     return Invalid_Trie;
   }
 
@@ -564,25 +561,25 @@ public Trie: native_findClass(plugin, numParams) {
 //native bool: zm_setClassProperty(const Trie: class, const key[], const value[]);
 public bool: native_setClassProperty(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(3, numParams, logger)) {
+  if (!numParamsEqual(3, numParams)) {
     return false;
   }
 #endif
 
   new const Trie: class = get_param(1);
   if (!class) {
-    ThrowIllegalArgumentException(logger, "Invalid class specified: %d", class);
+    ThrowIllegalArgumentException(This_Logger, "Invalid class specified: %d", class);
     return false;
   }
 
 #if defined ENFORCE_REGISTERED_CLASSES_ONLY
   if (!isClassRegistered(class)) {
-    ThrowIllegalArgumentException(logger, "Cannot perform operations on an unregistered class: %d", class);
+    ThrowIllegalArgumentException(This_Logger, "Cannot perform operations on an unregistered class: %d", class);
     return false;
   }
 #else
   if (!classes) {
-    LoggerLogWarning(logger, "Calling zm_setClassProperty before any classes have been registered");
+    LoggerLogWarning("Calling zm_setClassProperty before any classes have been registered");
     return false;
   }
 #endif
@@ -595,7 +592,7 @@ public bool: native_setClassProperty(plugin, numParams) {
   TrieGetString(class, key, oldValue, charsmax(oldValue), len);
 #if defined CHECK_PROPERTY_CHANGED
   if (equal(value, oldValue)) {
-    LoggerLogDebug(logger, "Value of %s unchanged in %d: \"%s\"", key, class, value);
+    LoggerLogDebug("Value of %s unchanged in %d: \"%s\"", key, class, value);
     return false;
   }
 #endif
@@ -603,18 +600,18 @@ public bool: native_setClassProperty(plugin, numParams) {
   fwReturn = zm_onBeforeClassPropertyChanged(class, key, oldValue, value);
   if (fwReturn == PLUGIN_HANDLED) {
 #if defined DEBUG_ASSIGNMENTS
-    LoggerLogDebug(logger, "%d [%s] \"%s\" -> \"%s\" was rejected", class, key, oldValue, value);
+    LoggerLogDebug("%d [%s] \"%s\" -> \"%s\" was rejected", class, key, oldValue, value);
 #endif
     return false;
   }
 
 #if defined DEBUG_ASSIGNMENTS
-  LoggerLogDebug(logger, "Setting %d [%s] \"%s\" -> \"%s\"", class, key, oldValue, value);
+  LoggerLogDebug("Setting %d [%s] \"%s\" -> \"%s\"", class, key, oldValue, value);
 #endif
   TrieSetString(class, key, value);
   if (equal(key, ZM_CLASS_NAME)) {
 #if defined DEBUG_REGISTRATION
-    LoggerLogDebug(logger, "Updating class table reference \"%s\" -> \"%s\"", oldValue, value);
+    LoggerLogDebug("Updating class table reference \"%s\" -> \"%s\"", oldValue, value);
 #endif
 #if defined ENFORCE_REGISTERED_CLASSES_ONLY
     TrieDeleteKey(classes, oldValue);
@@ -634,7 +631,7 @@ public bool: native_setClassProperty(plugin, numParams) {
 //native zm_reloadClass(const Trie: class);
 public native_reloadClass(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams, logger)) {
+  if (!numParamsEqual(1, numParams)) {
     return;
   }
 #endif
@@ -642,7 +639,7 @@ public native_reloadClass(plugin, numParams) {
   new const Trie: class = get_param(1);
 #if defined ENFORCE_REGISTERED_CLASSES_ONLY
   if (!isClassRegistered(class)) {
-    ThrowIllegalArgumentException(logger, "Cannot perform operations on an unregistered class: %d", class);
+    ThrowIllegalArgumentException(This_Logger, "Cannot perform operations on an unregistered class: %d", class);
     return;
   }
 #endif
@@ -654,7 +651,7 @@ public native_reloadClass(plugin, numParams) {
     TrieGetString(class, key, value, charsmax(value), len);
 
 #if defined DEBUG_ASSIGNMENTS
-    LoggerLogDebug(logger, "Loading %d [%s] = \"%s\"", class, key, value);
+    LoggerLogDebug("Loading %d [%s] = \"%s\"", class, key, value);
 #endif
     zm_onClassPropertyChanged(class, key, "", value);
   }
@@ -665,7 +662,7 @@ public native_reloadClass(plugin, numParams) {
 //native bool: zm_isClassRegistered(const Trie: class);
 public bool: native_isClassRegistered(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams, logger)) {
+  if (!numParamsEqual(1, numParams)) {
     return false;
   }
 #endif
@@ -677,7 +674,7 @@ public bool: native_isClassRegistered(plugin, numParams) {
 //native zm_getNumClasses();
 public native_getNumClasses(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(0, numParams, logger)) {
+  if (!numParamsEqual(0, numParams)) {
     return 0;
   }
 #endif
@@ -692,7 +689,7 @@ public native_getNumClasses(plugin, numParams) {
 //native Array: zm_getClasses(const Array: dst = Invalid_Array);
 public Array: native_getClasses(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams, logger)) {
+  if (!numParamsEqual(1, numParams)) {
     return Invalid_Array;
   }
 #endif
@@ -700,13 +697,13 @@ public Array: native_getClasses(plugin, numParams) {
   new Array: dst = get_param(1);
   if (dst) {
 #if defined DEBUG_GET_CLASSES
-    LoggerLogDebug(logger, "clearing input cellarray %d", dst);
+    LoggerLogDebug("clearing input cellarray %d", dst);
 #endif
     ArrayClear(dst);
   } else {
     dst = ArrayCreate();
 #if defined DEBUG_GET_CLASSES
-    LoggerLogDebug(logger, "dst cellarray initialized as cellarray %d", dst);
+    LoggerLogDebug("dst cellarray initialized as cellarray %d", dst);
 #endif
   }
   
@@ -721,7 +718,7 @@ public Array: native_getClasses(plugin, numParams) {
     TrieGetCell(classes, key, class);
     ArrayPushCell(dst, class);
 #if defined DEBUG_GET_CLASSES
-    LoggerLogDebug(logger, "dst[%d]=%d:[%s]", i, class, key);
+    LoggerLogDebug("dst[%d]=%d:[%s]", i, class, key);
 #endif
   }
 
@@ -732,14 +729,14 @@ public Array: native_getClasses(plugin, numParams) {
 //native Trie: zm_getUserClass(const id);
 public Trie: native_getUserClass(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams, logger)) {
+  if (!numParamsEqual(1, numParams)) {
     return Invalid_Trie;
   }
 #endif
 
   new const id = get_param(1);
   if (!isValidId(id)) {
-    ThrowIllegalArgumentException(logger, "Invalid player id specified: %d", id);
+    ThrowIllegalArgumentException(This_Logger, "Invalid player id specified: %d", id);
     return Invalid_Trie;
   }
 
@@ -749,26 +746,26 @@ public Trie: native_getUserClass(plugin, numParams) {
 //native Trie: zm_setUserClass(const id, const Trie: class);
 public Trie: native_setUserClass(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(4, numParams, logger)) {
+  if (!numParamsEqual(4, numParams)) {
     return Invalid_Trie;
   }
 #endif
 
   new const id = get_param(1);
   if (!isValidId(id)) {
-    ThrowIllegalArgumentException(logger, "Invalid player id specified: %d", id);
+    ThrowIllegalArgumentException(This_Logger, "Invalid player id specified: %d", id);
     return Invalid_Trie;
   }
 
   new const Trie: class = get_param(2);
   if (!class) {
-    ThrowIllegalArgumentException(logger, "Invalid class specified: %d", class);
+    ThrowIllegalArgumentException(This_Logger, "Invalid class specified: %d", class);
     return Invalid_Trie;
   }
 
 #if defined ENFORCE_REGISTERED_CLASSES_ONLY
   if (!isClassRegistered(class)) {
-    ThrowIllegalArgumentException(logger, "Cannot assign player to an unregistered class: %d", class);
+    ThrowIllegalArgumentException(This_Logger, "Cannot assign player to an unregistered class: %d", class);
     return Invalid_Trie;
   }
 #endif
@@ -777,7 +774,7 @@ public Trie: native_setUserClass(plugin, numParams) {
   new const Trie: oldClass = immediate ? pClass[id] : pNextClass[id];
   if (class == oldClass) {
 #if defined DEBUG_CLASS_CHANGES
-    LoggerLogDebug(logger, "%s unchanged for %N, ignoring", immediate ? "class" : "next class", id);
+    LoggerLogDebug("%s unchanged for %N, ignoring", immediate ? "class" : "next class", id);
 #endif
     return oldClass;
   }
@@ -798,7 +795,7 @@ public Trie: native_setUserClass(plugin, numParams) {
   fwReturn = zm_onBeforeClassChanged(id, class, immediate, blockable);
   if (fwReturn == PLUGIN_HANDLED && blockable) {
 #if defined DEBUG_CLASS_CHANGES
-    LoggerLogDebug(logger, "%s change on %N from \"%s\" -> \"%s\" was rejected",
+    LoggerLogDebug("%s change on %N from \"%s\" -> \"%s\" was rejected",
         immediate ? "class" : "next class", oldClassName, newClassName);
 #endif
     return oldClass;
@@ -812,7 +809,7 @@ public Trie: native_setUserClass(plugin, numParams) {
   }
 
 #if defined DEBUG_CLASS_CHANGES
-  LoggerLogDebug(logger, "%N changed %s from %s to %s",
+  LoggerLogDebug("%N changed %s from %s to %s",
       id, immediate ? "class" : "next class", oldClassName, newClassName);
 #endif
   zm_onAfterClassChanged(id, class, newClassName, immediate);
@@ -823,7 +820,7 @@ public Trie: native_setUserClass(plugin, numParams) {
 //native zm_registerClassLoader(const callback[], const extensions[], ...);
 public native_registerClassLoader(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsGreaterEqual(2, numParams, logger)) {
+  if (!numParamsGreaterEqual(2, numParams)) {
     return;
   }
 #endif
@@ -832,7 +829,7 @@ public native_registerClassLoader(plugin, numParams) {
   get_string(1, callback, charsmax(callback));
   new const onLoadClass = CreateOneForward(plugin, callback, FP_STRING, FP_STRING);
   if (!onLoadClass) {
-    ThrowIllegalArgumentException(logger, "Cannot register class loader without \"%s\" function", callback);
+    ThrowIllegalArgumentException(This_Logger, "Cannot register class loader without \"%s\" function", callback);
     return;
   }
 
@@ -840,7 +837,7 @@ public native_registerClassLoader(plugin, numParams) {
     classLoaders = TrieCreate();
 #if defined DEBUG_LOADERS
     assert classLoaders;
-    LoggerLogDebug(logger, "Initialized classLoaders container as celltrie %d", classLoaders);
+    LoggerLogDebug("Initialized classLoaders container as celltrie %d", classLoaders);
 #endif
   }
 
@@ -854,21 +851,21 @@ public native_registerClassLoader(plugin, numParams) {
   for (new param = 2; param <= numParams; param++) {
     get_string(param, extension, charsmax(extension));
     if (isStringEmpty(extension)) {
-      LoggerLogWarning(logger, "Cannot associate empty extension with a class loader");
+      LoggerLogWarning("Cannot associate empty extension with a class loader");
       continue;
     }
 
 #if defined WARN_ON_EXTENSION_OVERWRITE
     new bool: keyExists = TrieKeyExists(classLoaders, extension);
     if (keyExists) {
-      LoggerLogWarning(logger, "Overwriting existing class loader for extension \"%s\"", extension);
+      LoggerLogWarning("Overwriting existing class loader for extension \"%s\"", extension);
     }
 #endif
 #if defined DEBUG_LOADERS
     new name[32];
     get_plugin(plugin, .filename = name, .len1 = charsmax(name));
     name[strlen(name) - 5] = EOS;
-    LoggerLogDebug(logger, "Associating extension \"%s\" with %s::%s", extension, name, callback);
+    LoggerLogDebug("Associating extension \"%s\" with %s::%s", extension, name, callback);
 #endif
     TrieSetCell(classLoaders, extension, onLoadClass);
 #if defined DEBUG_LOADERS
@@ -880,13 +877,13 @@ public native_registerClassLoader(plugin, numParams) {
 //native zm_loadClass(const path[], const bool: recursive = false);
 public native_loadClass(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(2, numParams, logger)) {
+  if (!numParamsEqual(2, numParams)) {
     return;
   }
 #endif
 
   if (!classLoaders) {
-    LoggerLogWarning(logger, "Cannot load classes, no class loaders have been registered!");
+    LoggerLogWarning("Cannot load classes, no class loaders have been registered!");
     return;
   }
 

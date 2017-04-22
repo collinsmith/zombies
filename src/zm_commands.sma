@@ -11,6 +11,11 @@
 
 #define COMMANDS_DICTIONARY "zm_commands.txt"
 
+public zm_onInit() {
+  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
+  LoggerDestroy(oldLogger);
+}
+
 public zm_onInitExtension() {
   new name[32];
   formatex(name, charsmax(name), "[%L] %s", LANG_SERVER, ZM_NAME_SHORT, EXTENSION_NAME);
@@ -25,8 +30,7 @@ public zm_onInitExtension() {
 
   register_dictionary(COMMANDS_DICTIONARY);
 #if defined DEBUG_I18N
-  new const Logger: logger = zm_getLogger();
-  LoggerLogDebug(logger, "Registering dictionary file \"%s\"", COMMANDS_DICTIONARY);
+  LoggerLogDebug("Registering dictionary file \"%s\"", COMMANDS_DICTIONARY);
 #endif
 }
 

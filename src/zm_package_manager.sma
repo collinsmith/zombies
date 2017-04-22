@@ -7,21 +7,14 @@
 
 #include "include/zm/zombies.inc"
 
-#if defined ZM_COMPILE_FOR_DEBUG
-  #define DEBUG_UPDATES
-#else
-  //#define DEBUG_UPDATES
-#endif
-
 #define EXTENSION_NAME "Package Manager"
 #define VERSION_STRING "1.0.0"
 
 static const ZM_MANIFEST_URL[] = "https://raw.githubusercontent.com/collinsmith/zombies/master/manifest";
 
-static Logger: logger = Invalid_Logger;
-
 public zm_onInit() {
-  logger = zm_getLogger();
+  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
+  LoggerDestroy(oldLogger);
 }
 
 public zm_onInitExtension() {
@@ -36,7 +29,7 @@ public zm_onInitExtension() {
       .version = buildId,
       .desc = "Manages ZM packages and automates installing, upgrading and configuring");
 
-  LoggerLogInfo(logger, "Checking for updates...");
+  LoggerLogInfo("Checking for updates...");
   pkg_processManifest(ZM_MANIFEST_URL);
 }
 

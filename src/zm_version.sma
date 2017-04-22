@@ -17,10 +17,12 @@
 #define EXTENSION_NAME "Version"
 #define VERSION_STRING "1.0.0"
 
-static Logger: logger = Invalid_Logger;
-#pragma unused logger
-
 static gameDescription[32];
+
+public zm_onInit() {
+  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
+  LoggerDestroy(oldLogger);
+}
 
 public zm_onInitExtension() {
   new name[32];
@@ -33,8 +35,6 @@ public zm_onInitExtension() {
       .name = EXTENSION_NAME,
       .version = buildId,
       .desc = "Sets the game description string");
-
-  logger = zm_getLogger();
   
   configureModName();
   register_forward(FM_GetGameDescription, "onGetGameDescription");
@@ -54,7 +54,7 @@ stock getBuildId(buildId[], len) {
 configureModName() {
   assert isStringEmpty(gameDescription);
 #if defined DEBUG_VERSION
-  LoggerLogDebug(logger, "Configuring mod name (FM_GetGameDescription)");
+  LoggerLogDebug("Configuring mod name (FM_GetGameDescription)");
 #endif
 
   new const maxLen = charsmax(gameDescription);
@@ -64,7 +64,7 @@ configureModName() {
   regex_substr(regex, 0, gameDescription[len], maxLen - len);
   regex_free(regex);
 #if defined DEBUG_VERSION
-  LoggerLogDebug(logger, "Mod name set to \"%s\"", gameDescription);
+  LoggerLogDebug("Mod name set to \"%s\"", gameDescription);
 #endif
 }
 

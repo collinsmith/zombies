@@ -48,8 +48,6 @@
 
 const DEFAULT_FLAGS = PFLAG_CONNECTED;
 
-static Logger: logger = Invalid_Logger;
-
 static fwReturn = 0;
 static onSpawn = INVALID_HANDLE;
 static onKilled = INVALID_HANDLE;
@@ -86,6 +84,11 @@ public plugin_natives() {
   register_native("zm_setTeamChangeProvider", "native_setTeamChangeProvider");
 }
 
+public zm_onInit() {
+  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
+  LoggerDestroy(oldLogger);
+}
+
 public zm_onInitExtension() {
   new name[32];
   formatex(name, charsmax(name), "[%L] %s", LANG_SERVER, ZM_NAME_SHORT, EXTENSION_NAME);
@@ -98,8 +101,6 @@ public zm_onInitExtension() {
       .version = buildId,
       .desc = "Manages the teams");
 
-  logger = zm_getLogger();
-
   createForwards();
   registerConCmds();
 
@@ -109,7 +110,7 @@ public zm_onInitExtension() {
   new TeamInfo = get_user_msgid("TeamInfo");
   new const teamInfoHandle = register_message(TeamInfo, "onTeamInfo");
   if (!teamInfoHandle) {
-    LoggerLogWarning(logger, "register_message(TeamInfo, \"onTeamInfo\") returned 0");
+    LoggerLogWarning("register_message(TeamInfo, \"onTeamInfo\") returned 0");
   }
 }
 
@@ -122,28 +123,24 @@ registerConCmds() {
   zm_registerConCmd(
       .command = "players",
       .callback = "onPrintPlayers",
-      .desc = "Lists all players with their statuses",
-      .logger = logger);
+      .desc = "Lists all players with their statuses");
 
   zm_registerConCmd(
       .command = "zombies",
       .callback = "onPrintZombies",
-      .desc = "Lists players who are a zombie",
-      .logger = logger);
+      .desc = "Lists players who are a zombie");
 
   zm_registerConCmd(
       .command = "humans",
       .callback = "onPrintHumans",
-      .desc = "Lists players who are a human",
-      .logger = logger);
+      .desc = "Lists players who are a human");
 #endif
 
 #if defined USE_TEAM_PROVIDERS
   zm_registerConCmd(
       .command = "team_provider",
       .callback = "onPrintTeamProvider",
-      .desc = "Displays the current team provider",
-      .logger = logger);
+      .desc = "Displays the current team provider");
 #endif
 }
 
@@ -170,99 +167,99 @@ createCuredForwards() {
 createOnSpawn() {
 #if defined DEBUG_FORWARDS
   assert onSpawn == INVALID_HANDLE;
-  LoggerLogDebug(logger, "Creating forward for zm_onSpawn");
+  LoggerLogDebug("Creating forward for zm_onSpawn");
 #endif
   onSpawn = CreateMultiForward("zm_onSpawn", ET_CONTINUE, FP_CELL);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "onSpawn = %d", onSpawn);
+  LoggerLogDebug("onSpawn = %d", onSpawn);
 #endif
 }
 
 createOnKilled() {
 #if defined DEBUG_FORWARDS
   assert onKilled == INVALID_HANDLE;
-  LoggerLogDebug(logger, "Creating forward for zm_onKilled");
+  LoggerLogDebug("Creating forward for zm_onKilled");
 #endif
   onKilled = CreateMultiForward("zm_onKilled", ET_CONTINUE, FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "onKilled = %d", onKilled);
+  LoggerLogDebug("onKilled = %d", onKilled);
 #endif
 }
 
 createOnApply() {
 #if defined DEBUG_FORWARDS
   assert onApply == INVALID_HANDLE;
-  LoggerLogDebug(logger, "Creating forward for zm_onApply");
+  LoggerLogDebug("Creating forward for zm_onApply");
 #endif
   onApply = CreateMultiForward("zm_onApply", ET_CONTINUE, FP_CELL);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "onApply = %d", onApply);
+  LoggerLogDebug("onApply = %d", onApply);
 #endif
 }
 
 createOnBeforeInfected() {
 #if defined DEBUG_FORWARDS
   assert onBeforeInfected == INVALID_HANDLE;
-  LoggerLogDebug(logger, "Creating forward for zm_onBeforeInfected");
+  LoggerLogDebug("Creating forward for zm_onBeforeInfected");
 #endif
   onBeforeInfected = CreateMultiForward("zm_onBeforeInfected", ET_STOP, FP_CELL, FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "onBeforeInfected = %d", onBeforeInfected);
+  LoggerLogDebug("onBeforeInfected = %d", onBeforeInfected);
 #endif
 }
 
 createOnInfected() {
 #if defined DEBUG_FORWARDS
   assert onInfected == INVALID_HANDLE;
-  LoggerLogDebug(logger, "Creating forward for zm_onInfected");
+  LoggerLogDebug("Creating forward for zm_onInfected");
 #endif
   onInfected = CreateMultiForward("zm_onInfected", ET_CONTINUE, FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "onInfected = %d", onInfected);
+  LoggerLogDebug("onInfected = %d", onInfected);
 #endif
 }
 
 createOnAfterInfected() {
 #if defined DEBUG_FORWARDS
   assert onAfterInfected == INVALID_HANDLE;
-  LoggerLogDebug(logger, "Creating forward for zm_onAfterInfected");
+  LoggerLogDebug("Creating forward for zm_onAfterInfected");
 #endif
   onAfterInfected = CreateMultiForward("zm_onAfterInfected", ET_CONTINUE, FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "onAfterInfected = %d", onAfterInfected);
+  LoggerLogDebug("onAfterInfected = %d", onAfterInfected);
 #endif
 }
 
 createOnBeforeCured() {
 #if defined DEBUG_FORWARDS
   assert onBeforeCured == INVALID_HANDLE;
-  LoggerLogDebug(logger, "Creating forward for zm_onBeforeCured");
+  LoggerLogDebug("Creating forward for zm_onBeforeCured");
 #endif
   onBeforeCured = CreateMultiForward("zm_onBeforeCured", ET_STOP, FP_CELL, FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "onBeforeCured = %d", onBeforeCured);
+  LoggerLogDebug("onBeforeCured = %d", onBeforeCured);
 #endif
 }
 
 createOnCured() {
 #if defined DEBUG_FORWARDS
   assert onCured == INVALID_HANDLE;
-  LoggerLogDebug(logger, "Creating forward for zm_onCured");
+  LoggerLogDebug("Creating forward for zm_onCured");
 #endif
   onCured = CreateMultiForward("zm_onCured", ET_CONTINUE, FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "onCured = %d", onCured);
+  LoggerLogDebug("onCured = %d", onCured);
 #endif
 }
 
 createOnAfterCured() {
 #if defined DEBUG_FORWARDS
   assert onAfterCured == INVALID_HANDLE;
-  LoggerLogDebug(logger, "Creating forward for zm_onAfterCured");
+  LoggerLogDebug("Creating forward for zm_onAfterCured");
 #endif
   onAfterCured = CreateMultiForward("zm_onAfterCured", ET_CONTINUE, FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "onAfterCured = %d", onAfterCured);
+  LoggerLogDebug("onAfterCured = %d", onAfterCured);
 #endif
 }
 
@@ -299,7 +296,7 @@ public ham_onRoundRespawn(id) {
 
   refresh(id);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_onSpawn(%d) for %N", id, id);
+  LoggerLogDebug("Forwarding zm_onSpawn(%d) for %N", id, id);
 #endif
   ExecuteForward(onSpawn, fwReturn, id);
   return HAM_HANDLED;
@@ -312,7 +309,7 @@ public ham_onKilled(killer, victim, shouldgib) {
   
   pFlags[victim] &= ~PFLAG_ALIVE;
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Calling zm_onKilled(killer=%d, victim=%d) for %N", killer, victim, victim);
+  LoggerLogDebug("Calling zm_onKilled(killer=%d, victim=%d) for %N", killer, victim, victim);
 #endif
   ExecuteForward(onKilled, fwReturn, killer, victim);
   return HAM_HANDLED;
@@ -331,7 +328,7 @@ public onTeamInfo(const msgId, const msgDest, const entId) {
   new team[2];
   get_msg_arg_string(2, team, charsmax(team));
 #if defined DEBUG_INFECT
-  LoggerLogDebug(logger, "onTeamInfo(%d, \"%s\") for %N", id, team, id);
+  LoggerLogDebug("onTeamInfo(%d, \"%s\") for %N", id, team, id);
 #endif
   // FIXME: This implementation will cause problems in other mods
   switch (team[0]) {
@@ -339,7 +336,7 @@ public onTeamInfo(const msgId, const msgDest, const entId) {
     case 'S': return;
     case 'T': infect(.id = id, .blockable = false);
     case 'U': return;
-    default: ThrowAssertionException(logger, "Unexpected value of team[0]: %c", team[0]);
+    default: ThrowAssertionException(This_Logger, "Unexpected value of team[0]: %c", team[0]);
   }
 }
 
@@ -349,7 +346,7 @@ bool: respawn(id, bool: force = false) {
 #endif
   if ((pFlags[id] & PFLAG_ALIVE) && !force) {
 #if defined DEBUG_RESPAWN
-    LoggerLogDebug(logger, "Respawn blocked for %N", id);
+    LoggerLogDebug("Respawn blocked for %N", id);
 #endif
     return false;
   }
@@ -373,13 +370,13 @@ ZM_State_Change: infect(const id, const infector = -1, const bool: blockable = t
   }
 
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_onBeforeInfected(%d, %d, blockable=%s) for %N",
+  LoggerLogDebug("Forwarding zm_onBeforeInfected(%d, %d, blockable=%s) for %N",
       id, infector, blockable ? TRUE : FALSE, id);
 #endif
   ExecuteForward(onBeforeInfected, fwReturn, id, infector, blockable);
   if (blockable && fwReturn == PLUGIN_HANDLED) {
 #if defined DEBUG_INFECTION
-    LoggerLogDebug(logger, "Infection blocked for %N", id);
+    LoggerLogDebug("Infection blocked for %N", id);
 #endif
     return ZM_STATE_CHANGE_BLOCKED;
   }
@@ -389,7 +386,7 @@ ZM_State_Change: infect(const id, const infector = -1, const bool: blockable = t
 #endif
 
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_onInfected(%d, %d) for %N", id, infector, id);
+  LoggerLogDebug("Forwarding zm_onInfected(%d, %d) for %N", id, infector, id);
 #endif
   ExecuteForward(onInfected, fwReturn, id, infector);
 
@@ -397,12 +394,12 @@ ZM_State_Change: infect(const id, const infector = -1, const bool: blockable = t
 #if defined USE_TEAM_PROVIDERS
   if (onProvideTeamChange == INVALID_HANDLE) {
     new msg[] = "Team change called without any provider set!";
-    ThrowIllegalStateException(logger, msg);
+    ThrowIllegalStateException(This_Logger, msg);
     set_fail_state(msg);
     return ZM_STATE_CHANGE_DID_NOT_CHANGE;
   } else {
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "Forwarding to team change provider for %N", id);
+    LoggerLogDebug("Forwarding to team change provider for %N", id);
 #endif
     ExecuteForward(onProvideTeamChange, fwReturn, id, ZM_TEAM_ZOMBIE);
   }
@@ -417,15 +414,15 @@ ZM_State_Change: infect(const id, const infector = -1, const bool: blockable = t
   }
 
   #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_onAfterInfected(%d, %d) for %N", id, infector, id);
+  LoggerLogDebug("Forwarding zm_onAfterInfected(%d, %d) for %N", id, infector, id);
 #endif
   ExecuteForward(onAfterInfected, fwReturn, id, infector);
 
 #if defined DEBUG_INFECTION
   if (isValidId(infector)) {
-    LoggerLogDebug(logger, "%N infected %N", infector, id);
+    LoggerLogDebug("%N infected %N", infector, id);
   } else {
-    LoggerLogDebug(logger, "%N has been infected", id);
+    LoggerLogDebug("%N has been infected", id);
   }
 #endif
 
@@ -446,12 +443,12 @@ ZM_State_Change: cure(const id, const curor = -1, const bool: blockable = true, 
   }
 
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_onBeforeCured(%d, %d, blockable=%s) for %N", id, curor, blockable ? TRUE : FALSE, id);
+  LoggerLogDebug("Forwarding zm_onBeforeCured(%d, %d, blockable=%s) for %N", id, curor, blockable ? TRUE : FALSE, id);
 #endif
   ExecuteForward(onBeforeCured, fwReturn, id, curor, blockable);
   if (blockable && fwReturn == PLUGIN_HANDLED) {
 #if defined DEBUG_INFECTION
-    LoggerLogDebug(logger, "Curing blocked for %N", id);
+    LoggerLogDebug("Curing blocked for %N", id);
 #endif
     return ZM_STATE_CHANGE_BLOCKED;
   }
@@ -461,7 +458,7 @@ ZM_State_Change: cure(const id, const curor = -1, const bool: blockable = true, 
 #endif
 
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_onCured(%d, %d) for %N", id, curor, id);
+  LoggerLogDebug("Forwarding zm_onCured(%d, %d) for %N", id, curor, id);
 #endif
   ExecuteForward(onCured, fwReturn, id, curor);
 
@@ -469,12 +466,12 @@ ZM_State_Change: cure(const id, const curor = -1, const bool: blockable = true, 
 #if defined USE_TEAM_PROVIDERS
   if (onProvideTeamChange == INVALID_HANDLE) {
     new msg[] = "Team change required without any provider set!";
-    ThrowIllegalStateException(logger, msg);
+    ThrowIllegalStateException(This_Logger, msg);
     set_fail_state(msg);
     return ZM_STATE_CHANGE_DID_NOT_CHANGE;
   } else {
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug(logger, "Forwarding to team change provider for %N", id);
+    LoggerLogDebug("Forwarding to team change provider for %N", id);
 #endif
     ExecuteForward(onProvideTeamChange, fwReturn, id, ZM_TEAM_HUMAN);
   }
@@ -489,15 +486,15 @@ ZM_State_Change: cure(const id, const curor = -1, const bool: blockable = true, 
   }
 
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug(logger, "Forwarding zm_onAfterCured(%d, %d) for %N", id, curor, id);
+  LoggerLogDebug("Forwarding zm_onAfterCured(%d, %d) for %N", id, curor, id);
 #endif
   ExecuteForward(onAfterCured, fwReturn, id, curor);
 
 #if defined DEBUG_INFECTION
   if (isValidId(curor)) {
-    LoggerLogDebug(logger, "%N cured %N", curor, id);
+    LoggerLogDebug("%N cured %N", curor, id);
   } else {
-    LoggerLogDebug(logger, "%N has been cured", id);
+    LoggerLogDebug("%N has been cured", id);
   }
 #endif
   return ZM_STATE_CHANGE_CHANGED;
@@ -510,7 +507,7 @@ bool: refresh(const id) {
 #endif
 
 #if defined DEBUG_FORWARDS || defined DEBUG_APPLY
-  LoggerLogDebug(logger, "Forwarding zm_onApply(%d) for %N", id, id);
+  LoggerLogDebug("Forwarding zm_onApply(%d) for %N", id, id);
 #endif
   ExecuteForward(onApply, fwReturn, id);
   return true;
@@ -601,14 +598,14 @@ public onPrintTeamProvider(id) {
 //native ZM_Team: zm_getUserTeam(const id);
 public ZM_Team: native_getUserTeam(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams, logger)) {
+  if (!numParamsEqual(1, numParams)) {
     return ZM_TEAM_UNASSIGNED;
   }
 #endif
 
   new const id = get_param(1);
   if (!isValidId(id)) {
-    ThrowIllegalArgumentException(logger, "Invalid player id specified: %d", id);
+    ThrowIllegalArgumentException(This_Logger, "Invalid player id specified: %d", id);
     return ZM_TEAM_UNASSIGNED;
   }
 
@@ -618,17 +615,17 @@ public ZM_Team: native_getUserTeam(plugin, numParams) {
 //native bool: zm_respawn(const id, const bool: force = false);
 public bool: native_respawn(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams, logger)) {
+  if (!numParamsEqual(1, numParams)) {
     return false;
   }
 #endif
 
   new const id = get_param(1);
   if (!isValidId(id)) {
-    ThrowIllegalArgumentException(logger, "Invalid player id specified: %d", id);
+    ThrowIllegalArgumentException(This_Logger, "Invalid player id specified: %d", id);
     return false;
   } else if (!(pFlags[id] & PFLAG_CONNECTED)) {
-    ThrowIllegalArgumentException(logger, "Player with id is not connected: %d", id);
+    ThrowIllegalArgumentException(This_Logger, "Player with id is not connected: %d", id);
   }
 
   new const bool: force = get_param(2);
@@ -639,17 +636,17 @@ public bool: native_respawn(plugin, numParams) {
 //                                  const bool: respawn = false);
 public ZM_State_Change: native_infect(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(3, numParams, logger)) {
+  if (!numParamsEqual(3, numParams)) {
     return ZM_STATE_CHANGE_ERROR;
   }
 #endif
 
   new const id = get_param(1);
   if (!isValidId(id)) {
-    ThrowIllegalArgumentException(logger, "Invalid player id specified: %d", id);
+    ThrowIllegalArgumentException(This_Logger, "Invalid player id specified: %d", id);
     return ZM_STATE_CHANGE_ERROR;
   } else if (!(pFlags[id] & PFLAG_CONNECTED)) {
-    ThrowIllegalArgumentException(logger, "Player with id is not connected: %d", id);
+    ThrowIllegalArgumentException(This_Logger, "Player with id is not connected: %d", id);
     return ZM_STATE_CHANGE_ERROR;
   }
 
@@ -663,17 +660,17 @@ public ZM_State_Change: native_infect(plugin, numParams) {
 //                                const bool: respawn = false);
 public ZM_State_Change: native_cure(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(3, numParams, logger)) {
+  if (!numParamsEqual(3, numParams)) {
     return ZM_STATE_CHANGE_ERROR;
   }
 #endif
 
   new const id = get_param(1);
   if (!isValidId(id)) {
-    ThrowIllegalArgumentException(logger, "Invalid player id specified: %d", id);
+    ThrowIllegalArgumentException(This_Logger, "Invalid player id specified: %d", id);
     return ZM_STATE_CHANGE_ERROR;
   } else if (!(pFlags[id] & PFLAG_CONNECTED)) {
-    ThrowIllegalArgumentException(logger, "Player with id is not connected: %d", id);
+    ThrowIllegalArgumentException(This_Logger, "Player with id is not connected: %d", id);
     return ZM_STATE_CHANGE_ERROR;
   }
 
@@ -685,16 +682,16 @@ public ZM_State_Change: native_cure(plugin, numParams) {
 
 //native bool: zm_refresh(const id);
 public bool: native_refresh(plugin, numParams) {
-  if (!numParamsEqual(1, numParams, logger)) {
+  if (!numParamsEqual(1, numParams)) {
     return false;
   }
 
   new id = get_param(1);
   if (!isValidId(id)) {
-    ThrowIllegalArgumentException(logger, "Invalid player id specified: %d", id);
+    ThrowIllegalArgumentException(This_Logger, "Invalid player id specified: %d", id);
     return false;
   } else if (!(pFlags[id] & PFLAG_ALIVE)) {
-    ThrowIllegalArgumentException(logger, "Player with id is not alive: %d", id);
+    ThrowIllegalArgumentException(This_Logger, "Player with id is not alive: %d", id);
     return false;
   }
 
@@ -704,13 +701,13 @@ public bool: native_refresh(plugin, numParams) {
 //native zm_setTeamChangeProvider(const callback[]);
 public native_setTeamChangeProvider(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams, logger)) {
+  if (!numParamsEqual(1, numParams)) {
     return;
   }
 #endif
 
   if (onProvideTeamChange != INVALID_HANDLE) {
-    LoggerLogWarning(logger, "Overriding assigned team changer %d", onProvideTeamChange);
+    LoggerLogWarning("Overriding assigned team changer %d", onProvideTeamChange);
     DestroyForward(onProvideTeamChange);
   }
 
@@ -723,6 +720,6 @@ public native_setTeamChangeProvider(plugin, numParams) {
   new name[32];
   get_plugin(plugin, .filename = name, .len1 = charsmax(name));
   name[strlen(name) - 5] = EOS;
-  LoggerLogDebug(logger, "Setting team change provider to %s::%s", name, callback);
+  LoggerLogDebug("Setting team change provider to %s::%s", name, callback);
 #endif
 }

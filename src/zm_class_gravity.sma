@@ -15,10 +15,9 @@
 #define EXTENSION_NAME "Class Gravity"
 #define VERSION_STRING "1.0.0"
 
-static Logger: logger = Invalid_Logger;
-
 public zm_onInit() {
-  logger = zm_getLogger();
+  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
+  LoggerDestroy(oldLogger);
 }
 
 public zm_onInitExtension() {
@@ -42,7 +41,7 @@ public zm_onApply(const id) {
   new const Class: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_GRAVITY
-    LoggerLogDebug(logger, "%N doesn't have a class, ignoring", id);
+    LoggerLogDebug("%N doesn't have a class, ignoring", id);
 #endif
     return;
   }
@@ -53,7 +52,7 @@ public zm_onApply(const id) {
 #if defined DEBUG_GRAVITY
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogDebug(logger, "Ignoring gravity change for %N because \"%s\" does not contain a value for \"%s\"",
+    LoggerLogDebug("Ignoring gravity change for %N because \"%s\" does not contain a value for \"%s\"",
         id, key, ZM_CLASS_GRAVITY);
     return;
 #endif
@@ -63,19 +62,19 @@ public zm_onApply(const id) {
   if (gravity < 0.0) {
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogError(logger,"Invalid gravity value for class \"%s\". Gravity cannot be less than 0.00: %.2f", key, gravity);
+    LoggerLogError("Invalid gravity value for class \"%s\". Gravity cannot be less than 0.00: %.2f", key, gravity);
     return;
   } else if (gravity == 0.0) {
 #if defined DEBUG_GRAVITY
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogDebug(logger, "Ignoring gravity change for %N because gravity of \"%s\" is %.2f", id, key, gravity);
+    LoggerLogDebug("Ignoring gravity change for %N because gravity of \"%s\" is %.2f", id, key, gravity);
 #endif
     return;
   }
 
 #if defined DEBUG_GRAVITY
-  LoggerLogDebug(logger, "Setting gravity of %N to %.2f", id, gravity);
+  LoggerLogDebug("Setting gravity of %N to %.2f", id, gravity);
 #endif
   set_pev(id, pev_gravity, gravity);
 }
