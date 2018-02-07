@@ -19,8 +19,7 @@ static Trie: class;
 static classesLoaded;
 
 public zm_onInit() {
-  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
-  LoggerDestroy(oldLogger);
+  LoadLogger(zm_getPluginId());
 
   zm_registerClassLoader("onLoadClass", "smc");
 }
@@ -44,7 +43,7 @@ stock getBuildId(buildId[], len) {
 
 public onLoadClass(const path[], const extension[]) {
 #if defined DEBUG_LOADER
-  LoggerLogDebug("Attempting to parse \"%s\" as an SMC file...", path);
+  logd("Attempting to parse \"%s\" as an SMC file...", path);
 #endif
 
   classesLoaded = 0;
@@ -57,32 +56,32 @@ public onLoadClass(const path[], const extension[]) {
   if (error) {
     new errorMsg[256];
     SMC_GetErrorString(error, errorMsg, charsmax(errorMsg));
-    LoggerLogError("Error at line %d, col %d: %s", line, col, errorMsg);
+    loge("Error at line %d, col %d: %s", line, col, errorMsg);
     return;
   }
 
 #if defined DEBUG_LOADER
-  LoggerLogDebug("Loaded %d classes", classesLoaded);
+  logd("Loaded %d classes", classesLoaded);
 #endif
 }
 
 public SMCResult: onNewSection(SMCParser: handle, const name[]) {
   if (class) {
-    LoggerLogError("class definitions cannot contain inner-sections", name);
+    loge("class definitions cannot contain inner-sections", name);
     return SMCParse_HaltFail;
   }
 
   class = TrieCreate();
   TrieSetString(class, ZM_CLASS_NAME, name);
 #if defined DEBUG_PARSER
-  LoggerLogDebug("creating new class: %d [%s]", class, name);
+  logd("creating new class: %d [%s]", class, name);
 #endif
   return SMCParse_Continue;
 }
 
 public SMCResult: onEndSection(SMCParser: handle) {
 #if defined DEBUG_PARSER
-  LoggerLogDebug("registering class %d", class);
+  logd("registering class %d", class);
 #endif
   zm_registerClass(class);
   classesLoaded++;
@@ -92,13 +91,13 @@ public SMCResult: onEndSection(SMCParser: handle) {
 
 public SMCResult: onKeyValue(SMCParser: handle, const key[], const value[]) {
   if (!class) {
-    LoggerLogError("cannot have key-value pair outside of section");
+    loge("cannot have key-value pair outside of section");
     return SMCParse_HaltFail;
   }
 
   TrieSetString(class, key, value);
 #if defined DEBUG_PARSER
-  LoggerLogDebug("%d [%s]=\"%s\"", class, key, value);
+  logd("%d [%s]=\"%s\"", class, key, value);
 #endif
   return SMCParse_Continue;
 }

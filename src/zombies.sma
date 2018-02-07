@@ -57,7 +57,7 @@ public plugin_natives() {
   register_native("zm_getNumExtensions", "native_getNumExtensions");
   register_native("zm_getExtension", "native_getExtension");
   register_native("zm_findExtension", "native_findExtension");
-  register_native("zm_getLogger", "native_getLogger");
+  register_native("zm_getPluginId", "native_getPluginId");
 }
 
 public plugin_precache() {
@@ -71,31 +71,38 @@ public plugin_precache() {
   create_cvar("zm_version", buildId, FCVAR_SPONLY, desc);
 
 #if defined ZM_COMPILE_FOR_DEBUG
-  LoggerSetVerbosity(This_Logger, Severity_Lowest);
+  SetGlobalLoggerVerbosity(UnsetLevel);
+  SetLoggerVerbosity(UnsetLevel);
 #endif
 
-  LoggerLogInfo("Launching %s v%s...", ZM_MOD_NAME, buildId);
-  LoggerLogInfo("Copyright (C) Collin \"Tirant\" Smith");
+  new status[16];
+  get_plugin(-1, .status = status, .len5 = charsmax(status));
+  if (!equal(status, "debug")) {
+    SetLoggerFormat(LogMessage, "[%5v] [%t] %s");
+  }
+
+  logi("Launching %s v%s...", ZM_MOD_NAME, buildId);
+  logi("Copyright (C) Collin \"Tirant\" Smith");
 
   new dictionary[32];
   zm_getDictionary(dictionary, charsmax(dictionary));
   register_dictionary(dictionary);
 #if defined DEBUG_I18N
-  LoggerLogDebug("Registered dictionary \"%s\"", dictionary);
+  logd("Registered dictionary \"%s\"", dictionary);
 #endif
 
 #if defined DEBUG_CFG
   new temp[256];
   zm_getDictionary(temp, charsmax(temp));
-  LoggerLogDebug("ZOMBIES_DICTIONARY=%s", temp);
+  logd("ZOMBIES_DICTIONARY=%s", temp);
   zm_getConfigsDir(temp, charsmax(temp));
-  LoggerLogDebug("ZM_CONFIGS_DIR=%s", temp);
+  logd("ZM_CONFIGS_DIR=%s", temp);
   zm_getConfigsFile(temp, charsmax(temp));
-  LoggerLogDebug("ZM_CFG_FILE=%s", temp);
+  logd("ZM_CFG_FILE=%s", temp);
 #endif
 
 #if defined DEBUG_COMMANDS
-  LoggerLogDebug("Registering console commands...");
+  logd("Registering console commands...");
 #endif
   registerConCmds();
 
@@ -110,7 +117,7 @@ public plugin_init() {
 public plugin_cfg() {
   new cfg[256];
   zm_getConfigsFile(cfg, charsmax(cfg));
-  LoggerLogDebug("Executing %s", cfg);
+  logd("Executing %s", cfg);
   server_cmd("exec %s", cfg);
 }
 
@@ -130,12 +137,12 @@ registerConCmds() {
 zm_onPrecache() {
 #if defined DEBUG_FORWARDS
   assert onPrecache == INVALID_HANDLE;
-  LoggerLogDebug("Creating forward for zm_onPrecache");
+  logd("Creating forward for zm_onPrecache");
 #endif
   onPrecache = CreateMultiForward("zm_onPrecache", ET_CONTINUE);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug("onPrecache = %d", onPrecache);
-  LoggerLogDebug("Forwarding zm_onPrecache");
+  logd("onPrecache = %d", onPrecache);
+  logd("Forwarding zm_onPrecache");
 #endif
   ExecuteForward(onPrecache, fwReturn);
   DestroyForward(onPrecache);
@@ -144,12 +151,12 @@ zm_onPrecache() {
 zm_onInit() {
 #if defined DEBUG_FORWARDS
   assert onInit == INVALID_HANDLE;
-  LoggerLogDebug("Creating forward for zm_onInit");
+  logd("Creating forward for zm_onInit");
 #endif
   onInit = CreateMultiForward("zm_onInit", ET_CONTINUE);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug("onInit = %d", onInit);
-  LoggerLogDebug("Forwarding zm_onInit");
+  logd("onInit = %d", onInit);
+  logd("Forwarding zm_onInit");
 #endif
   ExecuteForward(onInit, fwReturn);
   DestroyForward(onInit);
@@ -158,12 +165,12 @@ zm_onInit() {
 zm_onInitExtension() {
 #if defined DEBUG_FORWARDS
   assert onInitExtension == INVALID_HANDLE;
-  LoggerLogDebug("Creating forward for zm_onInitExtension");
+  logd("Creating forward for zm_onInitExtension");
 #endif
   onInitExtension = CreateMultiForward("zm_onInitExtension", ET_CONTINUE);
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug("onInitExtension = %d", onInitExtension);
-  LoggerLogDebug("Forwarding zm_onInitExtension");
+  logd("onInitExtension = %d", onInitExtension);
+  logd("Forwarding zm_onInitExtension");
 #endif
   ExecuteForward(onInitExtension, fwReturn);
   DestroyForward(onInitExtension);
@@ -172,18 +179,18 @@ zm_onInitExtension() {
 zm_onExtensionRegistered(ZM_Extension: extension, data[extension_t]) {
   if (onExtensionRegistered == INVALID_HANDLE) {
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug("Creating forward for zm_onExtensionRegistered");
+    logd("Creating forward for zm_onExtensionRegistered");
 #endif
     onExtensionRegistered = CreateMultiForward(
         "zm_onExtensionRegistered", ET_CONTINUE,
         FP_CELL, FP_STRING, FP_STRING, FP_STRING);
 #if defined DEBUG_FORWARDS
-    LoggerLogDebug("onExtensionRegistered = %d", onExtensionRegistered);
+    logd("onExtensionRegistered = %d", onExtensionRegistered);
 #endif
   }
 
 #if defined DEBUG_FORWARDS
-  LoggerLogDebug("Forwarding zm_onExtensionRegistered for %s", data[ext_Name]);
+  logd("Forwarding zm_onExtensionRegistered for %s", data[ext_Name]);
 #endif
   ExecuteForward(onExtensionRegistered, fwReturn,
       extension, data[ext_Name], data[ext_Version], data[ext_Desc]);
@@ -197,7 +204,7 @@ ZM_Extension: registerExtension(data[extension_t]) {
   numExtensions++;
 #if defined DEBUG_EXTENSIONS
   assert extension == numExtensions;
-  LoggerLogDebug("Registered extension \"%s\" as index %d", data[ext_Name], extension);
+  logd("Registered extension \"%s\" as index %d", data[ext_Name], extension);
 #endif
   return extension;
 }
@@ -246,15 +253,16 @@ public onPrintExtensions(id) {
  * Natives
  ******************************************************************************/
 
-//native Logger: zm_getLogger();
-public Logger: native_getLogger(plugin, numParams) {
+//native zm_getPluginId();
+public native_getPluginId(plugin, numParams) {
 #if defined DEBUG_NATIVES
   if (!numParamsEqual(0, numParams)) {
-    return Invalid_Logger;
+    return INVALID_PLUGIN_ID;
   }
 #endif
 
-  return LoggerGetThis();
+  // TODO: Cache this value? Don't expect this to be called much though.
+  return get_plugin(-1);
 }
 
 //native ZM_Extension: zm_registerExtension(const name[] = "",
@@ -269,7 +277,7 @@ public ZM_Extension: native_registerExtension(plugin, numParams) {
 
 #if defined ENFORCE_REGISTRATION_AFTER_INIT
   if (!onInitExtension) {
-    ThrowIllegalStateException(This_Logger, "Cannot register extensions outside of zm_onInitExtension");
+    ThrowIllegalStateException("Cannot register extensions outside of zm_onInitExtension");
     return Invalid_Extension;
   }
 #endif
@@ -279,7 +287,7 @@ public ZM_Extension: native_registerExtension(plugin, numParams) {
     numExtensions = 0;
 #if defined DEBUG_EXTENSIONS
     assert extensions;
-    LoggerLogDebug("Initialized extensions container as cellarray %d", extensions);
+    logd("Initialized extensions container as cellarray %d", extensions);
 #endif
   }
 
@@ -290,7 +298,7 @@ public ZM_Extension: native_registerExtension(plugin, numParams) {
     get_plugin(.index = plugin, .filename = data[ext_Name], .len1 = ext_Name_length);
     data[ext_Name][strlen(data[ext_Name])-5] = EOS;
 #if defined DEBUG_EXTENSIONS
-    LoggerLogDebug("Empty extension name specified, using \"%s\" instead", data[ext_Name]);
+    logd("Empty extension name specified, using \"%s\" instead", data[ext_Name]);
 #endif
   }
 
@@ -312,10 +320,10 @@ public bool: native_getExtension(plugin, numParams) {
 
   new const ZM_Extension: extension = get_param(1);
   if (extension == Invalid_Extension) {
-    LoggerLogError("Invalid extension specified: Invalid_Extension");
+    loge("Invalid extension specified: Invalid_Extension");
     return false;
   } else if (extension > numExtensions) {
-    LoggerLogError("Invalid extension specified: %d", extension);
+    loge("Invalid extension specified: %d", extension);
     return false;
   }
 

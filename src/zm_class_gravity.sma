@@ -16,8 +16,7 @@
 #define VERSION_STRING "1.0.0"
 
 public zm_onInit() {
-  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
-  LoggerDestroy(oldLogger);
+  LoadLogger(zm_getPluginId());
 }
 
 public zm_onInitExtension() {
@@ -41,7 +40,7 @@ public zm_onApply(const id) {
   new const Class: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_GRAVITY
-    LoggerLogDebug("%N doesn't have a class, ignoring", id);
+    logd("%N doesn't have a class, ignoring", id);
 #endif
     return;
   }
@@ -52,7 +51,7 @@ public zm_onApply(const id) {
 #if defined DEBUG_GRAVITY
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogDebug("Ignoring gravity change for %N because \"%s\" does not contain a value for \"%s\"",
+    logd("Ignoring gravity change for %N because \"%s\" does not contain a value for \"%s\"",
         id, key, ZM_CLASS_GRAVITY);
     return;
 #endif
@@ -62,19 +61,19 @@ public zm_onApply(const id) {
   if (gravity < 0.0) {
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogError("Invalid gravity value for class \"%s\". Gravity cannot be less than 0.00: %.2f", key, gravity);
+    loge("Invalid gravity value for class \"%s\". Gravity cannot be less than 0.00: %.2f", key, gravity);
     return;
   } else if (gravity == 0.0) {
 #if defined DEBUG_GRAVITY
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogDebug("Ignoring gravity change for %N because gravity of \"%s\" is %.2f", id, key, gravity);
+    logd("Ignoring gravity change for %N because gravity of \"%s\" is %.2f", id, key, gravity);
 #endif
     return;
   }
 
 #if defined DEBUG_GRAVITY
-  LoggerLogDebug("Setting gravity of %N to %.2f", id, gravity);
+  logd("Setting gravity of %N to %.2f", id, gravity);
 #endif
   set_pev(id, pev_gravity, gravity);
 }

@@ -16,8 +16,7 @@
 #define VERSION_STRING "1.0.0"
 
 public zm_onInit() {
-  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
-  LoggerDestroy(oldLogger);
+  LoadLogger(zm_getPluginId());
 }
 
 public zm_onInitExtension() {
@@ -41,7 +40,7 @@ public zm_onApply(const id) {
   new const Class: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_HEALTH
-    LoggerLogDebug("%N doesn't have a class, ignoring", id);
+    logd("%N doesn't have a class, ignoring", id);
 #endif
     return;
   }
@@ -52,7 +51,7 @@ public zm_onApply(const id) {
 #if defined DEBUG_HEALTH
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogDebug("Ignoring health change for %N because \"%s\" does not contain a value for \"%s\"",
+    logd("Ignoring health change for %N because \"%s\" does not contain a value for \"%s\"",
         id, key, ZM_CLASS_HEALTH);
     return;
 #endif
@@ -62,19 +61,19 @@ public zm_onApply(const id) {
   if (health < 0.0) {
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogError("Invalid health value for class \"%s\". Health cannot be less than 0.0: %.0f", key, health);
+    loge("Invalid health value for class \"%s\". Health cannot be less than 0.0: %.0f", key, health);
     return;
   } else if (health == 0.0) {
 #if defined DEBUG_HEALTH
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogDebug("Ignoring health change for %N because health of \"%s\" is %.0f", id, key, health);
+    logd("Ignoring health change for %N because health of \"%s\" is %.0f", id, key, health);
 #endif
     return;
   }
 
 #if defined DEBUG_HEALTH
-  LoggerLogDebug("Setting health of %N to %.0f", id, health);
+  logd("Setting health of %N to %.0f", id, health);
 #endif
   set_pev(id, pev_health, health);
 }

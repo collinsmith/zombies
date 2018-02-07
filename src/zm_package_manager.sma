@@ -13,8 +13,7 @@
 static const ZM_MANIFEST_URL[] = "https://raw.githubusercontent.com/collinsmith/zombies/master/manifest";
 
 public zm_onInit() {
-  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
-  LoggerDestroy(oldLogger);
+  LoadLogger(zm_getPluginId());
 }
 
 public zm_onInitExtension() {
@@ -29,7 +28,7 @@ public zm_onInitExtension() {
       .version = buildId,
       .desc = "Manages ZM packages and automates installing, upgrading and configuring");
 
-  LoggerLogInfo("Checking for updates...");
+  logi("Checking for updates...");
   pkg_processManifest(ZM_MANIFEST_URL);
 }
 

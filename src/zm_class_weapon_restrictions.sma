@@ -24,11 +24,10 @@
 static Trie: weapons;
 
 public zm_onInit() {
-  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
-  LoggerDestroy(oldLogger);
+  LoadLogger(zm_getPluginId());
 
 #if defined DEBUG_LOOKUP
-  LoggerLogDebug("populating weapon lookup table");
+  logd("populating weapon lookup table");
 #endif
   weapons = TrieCreate();
 #if defined FAST_WEAPONS
@@ -94,7 +93,7 @@ public zm_onApply(const id) {
   new const Class: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_RESTRICTIONS
-    LoggerLogDebug("%N doesn't have a class, resetting", id);
+    logd("%N doesn't have a class, resetting", id);
 #endif
     cs_resetWeaponRestrictions(id);
     return;

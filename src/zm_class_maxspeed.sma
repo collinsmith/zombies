@@ -18,8 +18,7 @@
 const Float: RAW_VALUE_THRESHOLD = 10.0;
 
 public zm_onInit() {
-  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
-  LoggerDestroy(oldLogger);
+  LoadLogger(zm_getPluginId());
 }
 
 public zm_onInitExtension() {
@@ -43,7 +42,7 @@ public zm_onApply(const id) {
   new const Class: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_MAXSPEED
-    LoggerLogDebug("%N doesn't have a class, ignoring", id);
+    logd("%N doesn't have a class, ignoring", id);
 #endif
     return;
   }
@@ -54,7 +53,7 @@ public zm_onApply(const id) {
 #if defined DEBUG_MAXSPEED
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogDebug("Ignoring maxspeed change for %N because \"%s\" does not contain a value for \"%s\"",
+    logd("Ignoring maxspeed change for %N because \"%s\" does not contain a value for \"%s\"",
         id, key, ZM_CLASS_MAXSPEED);
     return;
 #endif
@@ -64,13 +63,13 @@ public zm_onApply(const id) {
   if (maxspeed < 0.0) {
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogError("Invalid maxspeed value for class \"%s\". Max speed cannot be less than 0.00: %.2f", key, maxspeed);
+    loge("Invalid maxspeed value for class \"%s\". Max speed cannot be less than 0.00: %.2f", key, maxspeed);
     return;
   } else if (maxspeed == 0.0) {
 #if defined DEBUG_MAXSPEED
     new key[class_prop_key_length + 1];
     zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    LoggerLogDebug("Ignoring maxspeed change for %N because maxspeed of \"%s\" is %.2f", id, key, maxspeed);
+    logd("Ignoring maxspeed change for %N because maxspeed of \"%s\" is %.2f", id, key, maxspeed);
 #endif
     return;
   }
@@ -80,12 +79,12 @@ public zm_onApply(const id) {
     pev(id, pev_maxspeed, currentSpeed);
     maxspeed *= currentSpeed;
 #if defined DEBUG_MAXSPEED
-    LoggerLogDebug("maxspeed below threshold, treating as a multiplier");
+    logd("maxspeed below threshold, treating as a multiplier");
 #endif
   }
 
 #if defined DEBUG_MAXSPEED
-  LoggerLogDebug("Setting maxspeed of %N to %.2f", id, maxspeed);
+  logd("Setting maxspeed of %N to %.2f", id, maxspeed);
 #endif
   engfunc(EngFunc_SetClientMaxspeed, id, maxspeed); 
   set_pev(id, pev_maxspeed, maxspeed);

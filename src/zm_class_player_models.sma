@@ -23,8 +23,7 @@
 #define VERSION_STRING "1.0.0"
 
 public zm_onInit() {
-  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
-  LoggerDestroy(oldLogger);
+  LoadLogger(zm_getPluginId());
 }
 
 public zm_onInitExtension() {
@@ -57,7 +56,7 @@ public zm_onApply(const id) {
   new const Class: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_APPLICATION
-    LoggerLogDebug("%N doesn't have a class, resetting", id);
+    logd("%N doesn't have a class, resetting", id);
 #endif
     fm_reset_user_model(id);
     return;
@@ -67,7 +66,7 @@ public zm_onApply(const id) {
   zm_getClassProperty(class, ZM_CLASS_MODEL, value, charsmax(value));
 
 #if defined DEBUG_APPLICATION
-  LoggerLogDebug("Changing player model of %N to \"%s\"", id, value);
+  logd("Changing player model of %N to \"%s\"", id, value);
 #endif
   
   // TODO: Support custom player model indexes

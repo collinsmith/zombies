@@ -20,8 +20,7 @@
 static gameDescription[32];
 
 public zm_onInit() {
-  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
-  LoggerDestroy(oldLogger);
+  LoadLogger(zm_getPluginId());
 }
 
 public zm_onInitExtension() {
@@ -54,7 +53,7 @@ stock getBuildId(buildId[], len) {
 configureModName() {
   assert isStringEmpty(gameDescription);
 #if defined DEBUG_VERSION
-  LoggerLogDebug("Configuring mod name (FM_GetGameDescription)");
+  logd("Configuring mod name (FM_GetGameDescription)");
 #endif
 
   new const maxLen = charsmax(gameDescription);
@@ -64,7 +63,7 @@ configureModName() {
   regex_substr(regex, 0, gameDescription[len], maxLen - len);
   regex_free(regex);
 #if defined DEBUG_VERSION
-  LoggerLogDebug("Mod name set to \"%s\"", gameDescription);
+  logd("Mod name set to \"%s\"", gameDescription);
 #endif
 }
 

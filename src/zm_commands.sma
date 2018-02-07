@@ -12,8 +12,7 @@
 #define COMMANDS_DICTIONARY "zm_commands.txt"
 
 public zm_onInit() {
-  new Logger: oldLogger = LoggerSetThis(zm_getLogger());
-  LoggerDestroy(oldLogger);
+  LoadLogger(zm_getPluginId());
 }
 
 public zm_onInitExtension() {
@@ -30,7 +29,7 @@ public zm_onInitExtension() {
 
   register_dictionary(COMMANDS_DICTIONARY);
 #if defined DEBUG_I18N
-  LoggerLogDebug("Registering dictionary file \"%s\"", COMMANDS_DICTIONARY);
+  logd("Registering dictionary file \"%s\"", COMMANDS_DICTIONARY);
 #endif
 }
 
