@@ -41,6 +41,7 @@
 #define PFLAG_TEAM_MASK 0x00000003
 #define PFLAG_CONNECTED 0x00000004
 #define PFLAG_ALIVE     0x00000008
+#define PFLAG_FIRST     0x00000010
 
 #define PFLAG_TEAM_UNASSIGNED any:(ZM_TEAM_UNASSIGNED)
 #define PFLAG_TEAM_ZOMBIE     any:(ZM_TEAM_ZOMBIE)
@@ -191,7 +192,7 @@ createOnApply() {
   assert onApply == INVALID_HANDLE;
   logd("Creating forward for zm_onApply");
 #endif
-  onApply = CreateMultiForward("zm_onApply", ET_CONTINUE, FP_CELL);
+  onApply = CreateMultiForward("zm_onApply", ET_CONTINUE, FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
   logd("onApply = %d", onApply);
 #endif
@@ -202,7 +203,7 @@ createOnAfterApply() {
   assert onAfterApply == INVALID_HANDLE;
   logd("Creating forward for zm_onAfterApply");
 #endif
-  onAfterApply = CreateMultiForward("zm_onAfterApply", ET_CONTINUE, FP_CELL);
+  onAfterApply = CreateMultiForward("zm_onAfterApply", ET_CONTINUE, FP_CELL, FP_CELL);
 #if defined DEBUG_FORWARDS
   logd("onAfterApply = %d", onAfterApply);
 #endif
@@ -301,11 +302,13 @@ public rg_onSpawn(id) {
 
   pFlags[id] |= PFLAG_ALIVE;
 
-  refresh(id);
+  // FIXME: refresh was moved after onSpawn forward, seemed like more correct
+  //        way. Need to test implications.
 #if defined DEBUG_FORWARDS
   logd("Forwarding zm_onSpawn(%d) for %N", id, id);
 #endif
   ExecuteForward(onSpawn, fwReturn, id);
+  refresh(id);
   return HC_CONTINUE;
 }
 
@@ -397,6 +400,7 @@ ZM_State_Change: infect(const id, const infector = -1, const bool: blockable = t
   ExecuteForward(onInfected, fwReturn, id, infector);
 
   pFlags[id] = PFLAG_TEAM_ZOMBIE | (pFlags[id] & ~PFLAG_TEAM_MASK);
+  pFlags[id] |= PFLAG_FIRST;
 #if defined USE_TEAM_PROVIDERS
   if (onProvideTeamChange == INVALID_HANDLE) {
     new msg[] = "Team change called without any provider set!";
@@ -469,6 +473,7 @@ ZM_State_Change: cure(const id, const curor = -1, const bool: blockable = true, 
   ExecuteForward(onCured, fwReturn, id, curor);
 
   pFlags[id] = PFLAG_TEAM_HUMAN | (pFlags[id] & ~PFLAG_TEAM_MASK);
+  pFlags[id] |= PFLAG_FIRST;
 #if defined USE_TEAM_PROVIDERS
   if (onProvideTeamChange == INVALID_HANDLE) {
     new msg[] = "Team change required without any provider set!";
@@ -512,14 +517,16 @@ bool: refresh(const id) {
   assert pFlags[id] & PFLAG_ALIVE;
 #endif
 
+  new const bool: first = (pFlags[id] & PFLAG_FIRST) == PFLAG_FIRST;
+  pFlags[id] &= ~PFLAG_FIRST;
 #if defined DEBUG_FORWARDS || defined DEBUG_APPLY
-  logd("Forwarding zm_onApply(%d) for %N", id, id);
+  logd("Forwarding zm_onApply(%d, first=%s) for %N", id, first, id);
 #endif
-  ExecuteForward(onApply, fwReturn, id);
+  ExecuteForward(onApply, fwReturn, id, first);
 #if defined DEBUG_FORWARDS || defined DEBUG_APPLY
-  logd("Forwarding zm_onAfterApply(%d) for %N", id, id);
+  logd("Forwarding zm_onAfterApply(%d, first=%s) for %N", id, first, id);
 #endif
-  ExecuteForward(onAfterApply, fwReturn, id);
+  ExecuteForward(onAfterApply, fwReturn, id, first);
   return true;
 }
 

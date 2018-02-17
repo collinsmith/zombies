@@ -165,11 +165,13 @@ public isItemEnabled(id, menu, item) {
   new const Trie: class = zm_findClass(name);
 #endif
 
+  // TODO: This should maybe be handled in an extension
+  if (class == zm_getUserClass(id)) {
+    return ITEM_DISABLED;
+  }
+
   zm_getClassPropertyName(class, ZM_CLASS_NAME, name, charsmax(name));
   fwReturn = zm_isClassEnabled(id, class, name);
-  if (class == zm_getUserClass(id)) {
-    
-  }
   return fwReturn > ITEM_IGNORE ? fwReturn : ITEM_ENABLED;
 }
 
