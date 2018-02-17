@@ -1,13 +1,12 @@
 #include <amxmodx>
-#include <amxmisc>
-#include <fakemeta>
+#include <engine>
 #include <logger>
 
 #include "include/zm/zm_classes.inc"
 #include "include/zm/zombies.inc"
 
 #if defined ZM_COMPILE_FOR_DEBUG
-  #define DEBUG_GRAVITY
+  //#define DEBUG_GRAVITY
 #else
   //#define DEBUG_GRAVITY
 #endif
@@ -40,8 +39,9 @@ public zm_onApply(const id) {
   new const Class: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_GRAVITY
-    logd("%N doesn't have a class, ignoring", id);
+    logd("%N doesn't have a class, resetting", id);
 #endif
+    setGravity(id, 1.0);
     return;
   }
   
@@ -72,8 +72,12 @@ public zm_onApply(const id) {
     return;
   }
 
+  setGravity(id, gravity);
+}
+
+setGravity(id, Float: gravity) {
 #if defined DEBUG_GRAVITY
   logd("Setting gravity of %N to %.2f", id, gravity);
 #endif
-  set_pev(id, pev_gravity, gravity);
+  entity_set_float(id, EV_FL_gravity, gravity);
 }

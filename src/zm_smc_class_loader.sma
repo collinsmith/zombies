@@ -1,4 +1,4 @@
-#include <amxmisc>
+#include <amxmodx>
 #include <logger>
 
 #include "include/zm/zm_classes.inc"

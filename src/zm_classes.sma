@@ -11,7 +11,7 @@
 #if defined ZM_COMPILE_FOR_DEBUG
   #define DEBUG_NATIVES
   //#define DEBUG_FORWARDS
-  #define DEBUG_REGISTRATION
+  //#define DEBUG_REGISTRATION
   #define DEBUG_ASSIGNMENTS
   #define DEBUG_GET_CLASSES
   #define DEBUG_CLASS_CHANGES
@@ -39,6 +39,8 @@
 #define CHECK_PROPERTY_CHANGED
 /** Log a warning if registering an extension for a class loader which will overwrite an existing one */
 #define WARN_ON_EXTENSION_OVERWRITE
+/** Invalid_Trie is used to reset a user's class to "null" */
+#define INVALID_TRIE_WILL_RESET_CLASS
 
 static fwReturn = 0;
 static onBeforeClassChanged = INVALID_HANDLE;
@@ -293,7 +295,15 @@ apply(const id, const Trie: class) {
 #if defined DEBUG_CLASS_CHANGES
   new const Trie: oldClass = pClass[id];
   new oldClassName[32], newClassName[32];
+#if defined INVALID_TRIE_WILL_RESET_CLASS
+  if (class) {
+    zm_getClassProperty(class, ZM_CLASS_NAME, newClassName, charsmax(newClassName));
+  } else {
+    copy(newClassName, charsmax(newClassName), NULL);
+  }
+#else
   zm_getClassProperty(class, ZM_CLASS_NAME, newClassName, charsmax(newClassName));
+#endif
   if (oldClass) {
     zm_getClassProperty(oldClass, ZM_CLASS_NAME, oldClassName, charsmax(oldClassName));
   } else {
@@ -303,7 +313,9 @@ apply(const id, const Trie: class) {
   logd("%N changed class from %s to %s", id, oldClassName, newClassName);
 #endif
   pClass[id] = class;
-  zm_refresh(id);
+  if (is_user_alive(id)) {
+    zm_refresh(id);
+  }
 }
 
 public zm_onApply(const id) {
@@ -443,7 +455,7 @@ public onPrintLoaders(id) {
     count = TrieSnapshotLength(keySet);
     for (new i = 0, len; i < count; i++) {
       len = TrieSnapshotGetKey(keySet, i, key, charsmax(key));
-      key[len] = 0;
+      key[len] = EOS;
 
       new plugin;
       TrieGetCell(classLoaderPlugins, key, plugin);
@@ -546,7 +558,7 @@ public Trie: native_findClass(plugin, numParams) {
   }
 
   new len = get_string(1, key, charsmax(key));
-  key[len] = 0;
+  key[len] = EOS;
 
   new Trie: class;
   new bool: keyExists = TrieGetCell(classes, key, class);
@@ -757,13 +769,19 @@ public Trie: native_setUserClass(plugin, numParams) {
   }
 
   new const Trie: class = get_param(2);
+#if !defined INVALID_TRIE_WILL_RESET_CLASS
   if (!class) {
     ThrowIllegalArgumentException("Invalid class specified: %d", class);
     return Invalid_Trie;
   }
+#endif
 
 #if defined ENFORCE_REGISTERED_CLASSES_ONLY
+#if defined INVALID_TRIE_WILL_RESET_CLASS
+  if (class != Invalid_Trie && !isClassRegistered(class)) {
+#else
   if (!isClassRegistered(class)) {
+#endif
     ThrowIllegalArgumentException("Cannot assign player to an unregistered class: %d", class);
     return Invalid_Trie;
   }
@@ -779,7 +797,15 @@ public Trie: native_setUserClass(plugin, numParams) {
   }
 
 #define newClassName key
+#if defined INVALID_TRIE_WILL_RESET_CLASS
+  if (class) {
+    zm_getClassProperty(class, ZM_CLASS_NAME, newClassName, charsmax(newClassName));
+  } else {
+    copy(newClassName, charsmax(newClassName), NULL);
+  }
+#else
   zm_getClassProperty(class, ZM_CLASS_NAME, newClassName, charsmax(newClassName));
+#endif
   
 #if defined DEBUG_FORWARDS || defined DEBUG_CLASS_CHANGES
   new oldClassName[32];

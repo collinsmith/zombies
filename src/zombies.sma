@@ -38,6 +38,7 @@ static onInit = INVALID_HANDLE;
 static onInitExtension = INVALID_HANDLE;
 static onExtensionRegistered = INVALID_HANDLE;
 
+static zmPluginId = INVALID_PLUGIN_ID;
 static Array: extensions, numExtensions;
 
 stock ZM_Extension: indexToExtension(value) return ZM_Extension:(value + 1);
@@ -71,8 +72,8 @@ public plugin_precache() {
   create_cvar("zm_version", buildId, FCVAR_SPONLY, desc);
 
 #if defined ZM_COMPILE_FOR_DEBUG
-  SetGlobalLoggerVerbosity(UnsetLevel);
-  SetLoggerVerbosity(UnsetLevel);
+  SetGlobalLoggerVerbosity(DebugLevel);
+  SetLoggerVerbosity(DebugLevel);
 #endif
 
   new status[16];
@@ -101,11 +102,7 @@ public plugin_precache() {
   logd("ZM_CFG_FILE=%s", temp);
 #endif
 
-#if defined DEBUG_COMMANDS
-  logd("Registering console commands...");
-#endif
   registerConCmds();
-
   zm_onPrecache();
 }
 
@@ -118,10 +115,14 @@ public plugin_cfg() {
   new cfg[256];
   zm_getConfigsFile(cfg, charsmax(cfg));
   logd("Executing %s", cfg);
-  server_cmd("exec %s", cfg);
+  server_cmd("exec \"%s\"", cfg);
 }
 
 registerConCmds() {
+#if defined DEBUG_COMMANDS
+  logd("Registering console commands...");
+#endif
+  
   zm_registerConCmd(
       .command = "version",
       .callback = "onPrintVersion",
@@ -261,8 +262,11 @@ public native_getPluginId(plugin, numParams) {
   }
 #endif
 
-  // TODO: Cache this value? Don't expect this to be called much though.
-  return get_plugin(-1);
+  if (zmPluginId == INVALID_PLUGIN_ID) {
+    zmPluginId = get_plugin(-1);
+  }
+  
+  return zmPluginId;
 }
 
 //native ZM_Extension: zm_registerExtension(const name[] = "",

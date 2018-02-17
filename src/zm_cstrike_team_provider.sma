@@ -1,3 +1,4 @@
+#include <amxmodx>
 #include <cstrike>
 
 #include "include/zm/zm_teams.inc"
@@ -26,5 +27,5 @@ stock getBuildId(buildId[], len) {
 }
 
 public provideTeamChange(const id, const ZM_Team: team) {
-  cs_set_user_team(id, team, _, .send_teaminfo = false);
+  cs_set_user_team(id, team, .send_teaminfo = false);
 }

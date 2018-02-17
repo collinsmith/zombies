@@ -9,3 +9,11 @@ ZM_TEAM_HUMAN=HUMAN
 ZM_TEAM_SPECTATOR=SPECTATOR
 
 ZM_CLASS_MENU_TITLE=Select a class:
+
+ZM_SWAP_SUCCESS=%N has been swapped!
+ZM_SWAP_FAIL=%N could not be swapped!
+ZM_SWAP_CLIENT=You have been swapped by an admin!
+
+ZM_RESPAWN_SUCCESS=%N has been respawned!
+ZM_RESPAWN_FAIL=%N could not be respawned!
+ZM_RESPAWN_CLIENT=You have been respawned by an admin!

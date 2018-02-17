@@ -1,18 +1,11 @@
 #include <amxmodx>
-#include <logger>
+#include <reapi>
 
-#include "include/stocks/path_stocks.inc"
-
+#include "include/zm/zm_teams.inc"
 #include "include/zm/zombies.inc"
 
-#define EXTENSION_NAME "Command Manager"
+#define EXTENSION_NAME "Team Change Provider: reapi"
 #define VERSION_STRING "1.0.0"
-
-#define COMMANDS_DICTIONARY "zm_commands.txt"
-
-public zm_onInit() {
-  LoadLogger(zm_getPluginId());
-}
 
 public zm_onInitExtension() {
   new name[32];
@@ -24,14 +17,15 @@ public zm_onInitExtension() {
   zm_registerExtension(
       .name = EXTENSION_NAME,
       .version = buildId,
-      .desc = "Manages custom commands");
+      .desc = "Provides team changes in ");
 
-  register_dictionary(COMMANDS_DICTIONARY);
-#if defined DEBUG_I18N
-  logd("Registered dictionary \"%s\"", COMMANDS_DICTIONARY);
-#endif
+  zm_setTeamChangeProvider("provideTeamChange");
 }
 
 stock getBuildId(buildId[], len) {
   return formatex(buildId, len, "%s [%s]", VERSION_STRING, __DATE__);
+}
+
+public provideTeamChange(const id, const ZM_Team: team) {
+  rg_set_user_team(id, any:(team), .send_teaminfo = false);
 }

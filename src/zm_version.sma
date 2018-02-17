@@ -1,10 +1,11 @@
+#include <amxmodx>
 #include <logger>
-#include <fakemeta>
+#include <reapi>
 #include <regex>
 
 #include "include/commands/commands.inc"
 
-#include "include/stocks/string_stocks.inc"
+#include "include/stocks/string_utils.inc"
 
 #include "include/zm/zombies.inc"
 
@@ -36,7 +37,6 @@ public zm_onInitExtension() {
       .desc = "Sets the game description string");
   
   configureModName();
-  register_forward(FM_GetGameDescription, "onGetGameDescription");
 
   new desc[256];
   formatex(desc, charsmax(desc), "The version of %L used", LANG_PLAYER, ZM_NAME);
@@ -65,11 +65,7 @@ configureModName() {
 #if defined DEBUG_VERSION
   logd("Mod name set to \"%s\"", gameDescription);
 #endif
-}
-
-public onGetGameDescription() {
-  forward_return(FMV_STRING, gameDescription);
-  return FMRES_SUPERCEDE;
+  set_member_game(m_GameDesc, gameDescription);
 }
 
 public onPrintVersion(id) {

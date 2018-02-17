@@ -1,7 +1,6 @@
 #include <amxmodx>
-#include <amxmisc>
 #include <logger>
-#include <hamsandwich>
+#include <reapi>
 
 #define USE_TEAM_PROVIDERS
 #if !defined USE_TEAM_PROVIDERS
@@ -10,16 +9,18 @@
 
 #include "include/stocks/param_stocks.inc"
 
+#include "include/commands/commands.inc"
+
 #include "include/zm/zm_teams_consts.inc"
 #include "include/zm/zombies.inc"
 
 #if defined ZM_COMPILE_FOR_DEBUG
   #define DEBUG_INFECTION
   #define DEBUG_RESPAWN
-  #define DEBUG_NATIVES
+  //#define DEBUG_NATIVES
   //#define DEBUG_FORWARDS
-  #define DEBUG_APPLY
-  #define DEBUG_PROVIDER
+  //#define DEBUG_APPLY
+  //#define DEBUG_PROVIDER
 #else
   //#define DEBUG_INFECTION
   //#define DEBUG_RESPAWN
@@ -58,6 +59,7 @@ static onBeforeCured = INVALID_HANDLE;
 static onCured = INVALID_HANDLE;
 static onAfterCured = INVALID_HANDLE;
 static onApply = INVALID_HANDLE;
+static onAfterApply = INVALID_HANDLE;
 #if defined USE_TEAM_PROVIDERS
 static onProvideTeamChange = INVALID_HANDLE;
 static teamChangeProvider = INVALID_PLUGIN_ID;
@@ -101,13 +103,13 @@ public zm_onInitExtension() {
   createForwards();
   registerConCmds();
 
-  RegisterHamPlayer(Ham_Spawn, "ham_onSpawn", 1);
-  RegisterHamPlayer(Ham_Killed, "ham_onKilled", 0);
+  RegisterHookChain(RG_CBasePlayer_Spawn, "rg_onSpawn", 1);
+  RegisterHookChain(RG_CBasePlayer_Killed, "rg_onKilled");
 
-  new TeamInfo = get_user_msgid("TeamInfo");
+  new const TeamInfo = get_user_msgid("TeamInfo");
   new const teamInfoHandle = register_message(TeamInfo, "onTeamInfo");
   if (!teamInfoHandle) {
-    logw("register_message(TeamInfo, \"onTeamInfo\") returned 0");
+    loge("register_message(TeamInfo, \"onTeamInfo\") returned 0");
   }
 }
 
@@ -145,6 +147,7 @@ createForwards() {
   createOnSpawn();
   createOnKilled();
   createOnApply();
+  createOnAfterApply();
   createInfectedForwards();
   createCuredForwards();
 }
@@ -191,6 +194,17 @@ createOnApply() {
   onApply = CreateMultiForward("zm_onApply", ET_CONTINUE, FP_CELL);
 #if defined DEBUG_FORWARDS
   logd("onApply = %d", onApply);
+#endif
+}
+
+createOnAfterApply() {
+#if defined DEBUG_FORWARDS
+  assert onAfterApply == INVALID_HANDLE;
+  logd("Creating forward for zm_onAfterApply");
+#endif
+  onAfterApply = CreateMultiForward("zm_onAfterApply", ET_CONTINUE, FP_CELL);
+#if defined DEBUG_FORWARDS
+  logd("onAfterApply = %d", onAfterApply);
 #endif
 }
 
@@ -280,15 +294,11 @@ public client_disconnected(id) {
   pFlags[id] = 0;
 }
 
-public ham_onSpawn(id) {
+public rg_onSpawn(id) {
   if (!is_user_alive(id)) {
-    return HAM_IGNORED;
+    return HC_CONTINUE;
   }
 
-  return ham_onRoundRespawn(id);
-}
-
-public ham_onRoundRespawn(id) {
   pFlags[id] |= PFLAG_ALIVE;
 
   refresh(id);
@@ -296,20 +306,20 @@ public ham_onRoundRespawn(id) {
   logd("Forwarding zm_onSpawn(%d) for %N", id, id);
 #endif
   ExecuteForward(onSpawn, fwReturn, id);
-  return HAM_HANDLED;
+  return HC_CONTINUE;
 }
 
-public ham_onKilled(killer, victim, shouldgib) {
+public rg_onKilled(victim, killer, shouldgib) {
 #if defined HIDE_MENUS_ON_STATE_CHANGE
   hideMenu(victim);
 #endif
   
   pFlags[victim] &= ~PFLAG_ALIVE;
 #if defined DEBUG_FORWARDS
-  logd("Calling zm_onKilled(killer=%d, victim=%d) for %N", killer, victim, victim);
+  logd("Calling zm_onKilled(victim=%d, killer=%d) for %N", victim, killer, victim);
 #endif
-  ExecuteForward(onKilled, fwReturn, killer, victim);
-  return HAM_HANDLED;
+  ExecuteForward(onKilled, fwReturn, victim, killer);
+  return HC_CONTINUE;
 }
 
 public onTeamInfo(const msgId, const msgDest, const entId) {
@@ -348,8 +358,7 @@ bool: respawn(id, bool: force = false) {
     return false;
   }
 
-  // TODO: This may need to conditionally call Ham_Respawn in other mods
-  ExecuteHamB(Ham_CS_RoundRespawn, id);
+  rg_round_respawn(id);
   return true;
 }
 
@@ -507,6 +516,10 @@ bool: refresh(const id) {
   logd("Forwarding zm_onApply(%d) for %N", id, id);
 #endif
   ExecuteForward(onApply, fwReturn, id);
+#if defined DEBUG_FORWARDS || defined DEBUG_APPLY
+  logd("Forwarding zm_onAfterApply(%d) for %N", id, id);
+#endif
+  ExecuteForward(onAfterApply, fwReturn, id);
   return true;
 }
 
@@ -606,13 +619,14 @@ public ZM_Team: native_getUserTeam(plugin, numParams) {
     return ZM_TEAM_UNASSIGNED;
   }
 
-  return ZM_Team:(pFlags[id] & PFLAG_TEAM_MASK);
+  new const ZM_Team: team = ZM_Team:(pFlags[id] & PFLAG_TEAM_MASK);
+  return team;
 }
 
 //native bool: zm_respawn(const id, const bool: force = false);
 public bool: native_respawn(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams)) {
+  if (!numParamsEqual(2, numParams)) {
     return false;
   }
 #endif
@@ -623,6 +637,7 @@ public bool: native_respawn(plugin, numParams) {
     return false;
   } else if (!(pFlags[id] & PFLAG_CONNECTED)) {
     ThrowIllegalArgumentException("Player with id is not connected: %d", id);
+    return false;
   }
 
   new const bool: force = get_param(2);
@@ -633,7 +648,7 @@ public bool: native_respawn(plugin, numParams) {
 //                                  const bool: respawn = false);
 public ZM_State_Change: native_infect(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(3, numParams)) {
+  if (!numParamsEqual(4, numParams)) {
     return ZM_STATE_CHANGE_ERROR;
   }
 #endif
@@ -657,7 +672,7 @@ public ZM_State_Change: native_infect(plugin, numParams) {
 //                                const bool: respawn = false);
 public ZM_State_Change: native_cure(plugin, numParams) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(3, numParams)) {
+  if (!numParamsEqual(4, numParams)) {
     return ZM_STATE_CHANGE_ERROR;
   }
 #endif
@@ -679,9 +694,11 @@ public ZM_State_Change: native_cure(plugin, numParams) {
 
 //native bool: zm_refresh(const id);
 public bool: native_refresh(plugin, numParams) {
+#if defined DEBUG_NATIVES
   if (!numParamsEqual(1, numParams)) {
     return false;
   }
+#endif
 
   new id = get_param(1);
   if (!isValidId(id)) {

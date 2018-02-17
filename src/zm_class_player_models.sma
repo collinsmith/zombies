@@ -1,6 +1,4 @@
 #include <amxmodx>
-#include <amxmisc>
-#include <fakemeta>
 #include <logger>
 
 #include "../lib/set_player_model/playermodel.inc"
@@ -12,8 +10,8 @@
 #include "include/zm/zombies.inc"
 
 #if defined ZM_COMPILE_FOR_DEBUG
-  #define DEBUG_PRECACHING
-  #define DEBUG_APPLICATION
+  //#define DEBUG_PRECACHING
+  //#define DEBUG_APPLICATION
 #else
   //#define DEBUG_PRECACHING
   //#define DEBUG_APPLICATION

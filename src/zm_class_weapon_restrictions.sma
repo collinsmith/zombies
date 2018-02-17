@@ -1,7 +1,7 @@
+#include <amxmodx>
 #include <amxconst>
-#include <amxmisc>
 
-#include "include/stocks/string_stocks.inc"
+#include "include/stocks/string_utils.inc"
 
 #include "include/cs_weapon_restrictions/cs_weapon_restrictions.inc"
 

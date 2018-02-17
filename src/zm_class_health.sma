@@ -1,13 +1,12 @@
 #include <amxmodx>
-#include <amxmisc>
-#include <fakemeta>
+#include <engine>
 #include <logger>
 
 #include "include/zm/zm_classes.inc"
 #include "include/zm/zombies.inc"
 
 #if defined ZM_COMPILE_FOR_DEBUG
-  #define DEBUG_HEALTH
+  //#define DEBUG_HEALTH
 #else
   //#define DEBUG_HEALTH
 #endif
@@ -40,8 +39,9 @@ public zm_onApply(const id) {
   new const Class: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_HEALTH
-    logd("%N doesn't have a class, ignoring", id);
+    logd("%N doesn't have a class, resetting", id);
 #endif
+    setHealth(id, 100.0);
     return;
   }
   
@@ -72,8 +72,12 @@ public zm_onApply(const id) {
     return;
   }
 
+  setHealth(id, health);
+}
+
+setHealth(id, Float: health) {
 #if defined DEBUG_HEALTH
   logd("Setting health of %N to %.0f", id, health);
 #endif
-  set_pev(id, pev_health, health);
+  entity_set_float(id, EV_FL_health, health);
 }

@@ -1,5 +1,4 @@
 #include <amxmodx>
-#include <amxmisc>
 #include <logger>
 
 #include "include/stocks/param_stocks.inc"
@@ -17,6 +16,7 @@
   #define DEBUG_PERSONALIZATION
   #define DEBUG_SELECTION
   #define DEBUG_DISPLAY
+  #define DEBUG_GET_CLASSES
 #else
   //#define DEBUG_NATIVES
   //#define DEBUG_FORWARDS
@@ -24,6 +24,7 @@
   //#define DEBUG_PERSONALIZATION
   //#define DEBUG_SELECTION
   //#define DEBUG_DISPLAY
+  //#define DEBUG_GET_CLASSES
 #endif
 
 #define EXTENSION_NAME "Class Menu"
@@ -35,6 +36,7 @@
 static fwReturn = 0;
 static onBeforeClassMenuDisplayed = INVALID_HANDLE;
 static onClassMenuDisplayed = INVALID_HANDLE;
+static onClassSelected = INVALID_HANDLE;
 static isClassEnabled = INVALID_HANDLE;
 
 static classMenu = INVALID_HANDLE;
@@ -48,6 +50,7 @@ public plugin_natives() {
   register_library("zm_class_menu");
 
   register_native("zm_showClassMenu", "native_showClassMenu");
+  register_native("zm_getUserClasses", "native_getUserClasses");
 }
 
 public zm_onInit() {
@@ -140,13 +143,14 @@ public onItemSelected(id, menu, item) {
 #if !defined name
   new name[class_prop_key_length + 1];
 #endif
+  // FIXME: This might cause problems with other extensions
   zm_getClassProperty(class, ZM_CLASS_NAME, name, charsmax(name));
   logd("%N selected \"%s\" (%d)", id, name, class);
   zm_setUserClass(id, class, true);
 #else
-  // TODO: This is required for testing until respawn command is added
   zm_setUserClass(id, class);
 #endif
+  zm_onClassSelected(id, class, name);
   return PLUGIN_HANDLED;
 }
 
@@ -163,6 +167,9 @@ public isItemEnabled(id, menu, item) {
 
   zm_getClassPropertyName(class, ZM_CLASS_NAME, name, charsmax(name));
   fwReturn = zm_isClassEnabled(id, class, name);
+  if (class == zm_getUserClass(id)) {
+    
+  }
   return fwReturn > ITEM_IGNORE ? fwReturn : ITEM_ENABLED;
 }
 
@@ -223,6 +230,25 @@ zm_onClassMenuDisplayed(id, bool: exitable) {
   logd("Forwarding zm_onClassMenuDisplayed(%d, exitable=%s) for %N", id, exitable ? TRUE : FALSE, id);
 #endif
   ExecuteForward(onClassMenuDisplayed, fwReturn, id, exitable);
+}
+
+zm_onClassSelected(id, Class: class, name[]) {
+  if (onClassSelected == INVALID_HANDLE) {
+#if defined DEBUG_FORWARDS
+    logd("Creating forward for zm_onClassSelected");
+#endif
+    onClassSelected = CreateMultiForward(
+        "zm_onClassSelected", ET_CONTINUE,
+        FP_CELL, FP_CELL, FP_STRING);
+#if defined DEBUG_FORWARDS
+    logd("onClassSelected = %d", onClassSelected);
+#endif
+  }
+  
+#if defined DEBUG_FORWARDS
+  logd("Forwarding zm_onClassSelected(%d, class=%s, \"%s\") for %N", id, class, name, id);
+#endif
+  ExecuteForward(onClassSelected, fwReturn, id, class, name);
 }
 
 bool: showClassMenu(id, bool: exitable) {
@@ -313,11 +339,16 @@ public onClassMenu(id) {
 
 stock bool: operator=(value) return value > 0;
 
+stock Array: toArray(value) return Array:(value);
+stock Array: operator=(value) return toArray(value);
+
 //native bool: zm_showClassMenu(const id, const bool: exitable);
 public bool: native_showClassMenu(plugin, numParams) {
+#if defined DEBUG_NATIVES
   if (!numParamsEqual(2, numParams)) {
     return false;
   }
+#endif
 
   new const id = get_param(1);
   if (!isValidId(id)) {
@@ -325,6 +356,55 @@ public bool: native_showClassMenu(plugin, numParams) {
     return false;
   }
 
-  new bool: exitable = get_param(2);
+  new const bool: exitable = get_param(2);
   return showClassMenu(id, exitable);
+}
+
+//native Array: zm_getUserClasses(const id, const Array: dst = Invalid_Array);
+public Array: native_getUserClasses(plugin, numParams) {
+#if defined DEBUG_NATIVES
+  if (!numParamsEqual(2, numParams)) {
+    return Invalid_Array;
+  }
+#endif
+
+  new const id = get_param(1);
+  if (!isValidId(id)) {
+    ThrowIllegalArgumentException("Invalid player id specified: %d", id);
+    return Invalid_Array;
+  }
+
+  new Array: dst = get_param(2);
+  if (dst) {
+#if defined DEBUG_GET_CLASSES
+    logd("clearing input cellarray %d", dst);
+#endif
+    ArrayClear(dst);
+  } else {
+    dst = ArrayCreate();
+#if defined DEBUG_GET_CLASSES
+    logd("dst cellarray initialized as cellarray %d", dst);
+#endif
+  }
+
+  new name[class_prop_key_length + 1];
+#if defined DEBUG_GET_CLASSES
+  new count = 0;
+#endif
+  new Array: classes = zm_getClasses(), Class: class;
+  new const size = ArraySize(classes);
+  for (new i = 0; i < size; i++) {
+    class = ArrayGetCell(classes, i);
+    zm_getClassPropertyName(class, ZM_CLASS_NAME, name, charsmax(name));
+    fwReturn = zm_isClassEnabled(id, class, name);
+    if (fwReturn == ITEM_ENABLED) {
+      ArrayPushCell(dst, class);
+#if defined DEBUG_GET_CLASSES
+      logd("dst[%d]=%d:[%s]", count++, class, name);
+#endif
+    }
+  }
+
+  ArrayDestroy(classes);
+  return dst;
 }
