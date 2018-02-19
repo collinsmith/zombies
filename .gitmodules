@@ -10,3 +10,6 @@
 [submodule "src/include/zm"]
 	path = src/include/zm
 	url = https://github.com/collinsmith/zombies-inc
+[submodule "src/include/classloader"]
+	path = src/include/classloader
+	url = https://github.com/collinsmith/classloader-inc

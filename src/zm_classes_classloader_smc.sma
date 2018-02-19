@@ -1,7 +1,7 @@
 #include <amxmodx>
 #include <logger>
 
-#include "include/classloader.inc"
+#include "include/classloader/classloader.inc"
 
 #include "include/zm/zm_classes.inc"
 #include "include/zm/zombies.inc"

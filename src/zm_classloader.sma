@@ -1,7 +1,7 @@
 #include <amxmodx>
 #include <logger>
 
-#include "include/classloader.inc"
+#include "include/classloader/classloader.inc"
 
 #include "include/stocks/param_stocks.inc"
 #include "include/stocks/path_stocks.inc"
