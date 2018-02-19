@@ -11,11 +11,10 @@
 #if defined ZM_COMPILE_FOR_DEBUG
   #define DEBUG_NATIVES
   //#define DEBUG_FORWARDS
-  //#define DEBUG_REGISTRATION
+  #define DEBUG_REGISTRATION
   #define DEBUG_ASSIGNMENTS
   #define DEBUG_GET_CLASSES
   #define DEBUG_CLASS_CHANGES
-  //#define DEBUG_LOADERS
 #else
   //#define DEBUG_NATIVES
   //#define DEBUG_FORWARDS
@@ -23,7 +22,6 @@
   //#define DEBUG_ASSIGNMENTS
   //#define DEBUG_GET_CLASSES
   //#define DEBUG_CLASS_CHANGES
-  //#define DEBUG_LOADERS
 #endif
 
 #define EXTENSION_NAME "Class Manager"
@@ -37,8 +35,6 @@
 #define ENFORCE_REGISTERED_CLASSES_ONLY
 /** Only forward class property change events if new value is different from current */
 #define CHECK_PROPERTY_CHANGED
-/** Log a warning if registering an extension for a class loader which will overwrite an existing one */
-#define WARN_ON_EXTENSION_OVERWRITE
 /** Invalid_Trie is used to reset a user's class to "null" */
 #define INVALID_TRIE_WILL_RESET_CLASS
 
@@ -51,10 +47,6 @@ static onBeforeClassPropertyChanged = INVALID_HANDLE;
 static onClassPropertyChanged = INVALID_HANDLE;
 
 static Trie: classes;
-static Trie: classLoaders;
-#if defined DEBUG_LOADERS
-static Trie: classLoaderPlugins;
-#endif
 
 static key[class_prop_key_length + 1];
 static value[class_prop_value_length + 1];
@@ -83,10 +75,6 @@ public plugin_natives() {
 
   register_native("zm_getNumClasses", "native_getNumClasses");
   register_native("zm_getClasses", "native_getClasses");
-
-  register_native("zm_registerClassLoader", "native_registerClassLoader");
-  register_native("zm_loadClass", "native_loadClass");
-  //register_native("zm_reloadClass", "native_reloadClass");
 }
 
 public zm_onInit() {
@@ -112,11 +100,6 @@ public zm_onInitExtension() {
 
   createForwards();
   registerConCmds();
-  
-  new path[256], len;
-  len = zm_getConfigsDir(path, charsmax(path));
-  resolvePath(path, charsmax(path), len, "classes");
-  loadClasses(path, true);
 }
 
 stock getBuildId(buildId[], len) {
@@ -129,13 +112,6 @@ stock registerConCmds() {
       .command = "classes",
       .callback = "onPrintClasses",
       .desc = "Lists the registered classes of ZM");
-#endif
-
-#if defined DEBUG_LOADERS
-  zm_registerConCmd(
-      .command = "loaders",
-      .callback = "onPrintLoaders",
-      .desc = "Lists the registered class loaders of ZM");
 #endif
 }
 
@@ -329,75 +305,6 @@ public zm_onApply(const id) {
   }
 }
 
-loadClasses(path[] = "", bool: recursive = false) {
-#if defined DEBUG_LOADERS
-  logd("Loading classes in \"%s\"", path);
-#endif
-
-  new file[32], len;
-  new dir = open_dir(path, file, charsmax(file));
-  if (!dir) {
-    loge("Failed to open \"%s\" (not found or unable to open)", path);
-    return;
-  }
-
-  new subPath[256];
-  len = copy(subPath, charsmax(subPath), path);
-  if (len <= charsmax(subPath)) {
-    subPath[len++] = PATH_SEPARATOR;
-  }
-
-  new const pathLen = len;
-  do {
-    len = pathLen + copy(subPath[pathLen], charsmax(subPath) - pathLen, file);
-    if (equal(file, ".") || equal(file, "..")) {
-      continue;
-    }
-
-    if (dir_exists(subPath)) {
-      if (recursive) {
-        loadClasses(subPath, recursive);
-      }
-
-      continue;
-    }
-
-    loadClass(subPath, len);
-  } while (next_file(dir, file, charsmax(file)));
-  close_dir(dir);
-}
-
-loadClass(path[] = "", len) {
-#if defined DEBUG_LOADERS
-  assert classLoaders;
-  logd("Parsing class file \"%s\"", path);
-#endif
-  
-  // TODO: turn this into a file util stock
-  new extension[32];
-  for (new i = len - 1; i >= 0; i--) {
-    if (path[i] == PATH_SEPARATOR) {
-      logw("Failed to load \"%s\", no extension", path);
-      return;
-    } else if (path[i] == '.') {
-      copy(extension, charsmax(extension), path[i + 1]);
-      break;
-    }
-  }
-
-  new onLoadClass;
-  new bool: keyExists = TrieGetCell(classLoaders, extension, onLoadClass);
-  if (!keyExists) {
-    logw("Failed to load \"%s\", no class loader registered for \"%s\"", path, extension);
-    return;
-  }
-
-#if defined DEBUG_LOADERS
-  logd("Forwarding to class loader %d", onLoadClass);
-#endif
-  ExecuteForward(onLoadClass, fwReturn, path, extension);
-}
-
 /*******************************************************************************
  * Console Commands
  ******************************************************************************/
@@ -443,42 +350,6 @@ public onPrintClasses(id) {
 }
 #endif
 
-#if defined DEBUG_LOADERS
-public onPrintLoaders(id) {
-  console_print(id, "Class Loaders:");
-  
-  new count, uniqueLoaders = 0;
-  if (classLoaders) {
-    new tmp[2];
-    new Trie: valueSet = TrieCreate();
-    new Snapshot: keySet = TrieSnapshotCreate(classLoaderPlugins);
-    count = TrieSnapshotLength(keySet);
-    for (new i = 0, len; i < count; i++) {
-      len = TrieSnapshotGetKey(keySet, i, key, charsmax(key));
-      key[len] = EOS;
-
-      new plugin;
-      TrieGetCell(classLoaderPlugins, key, plugin);
-
-      tmp[0] = plugin;
-      TrieSetCell(valueSet, tmp, 1);
-      
-      new filename[32];
-      get_plugin(plugin, .filename = filename, .len1 = charsmax(filename));
-      console_print(id, "%4s [%s]", key, filename);
-    }
-    
-    TrieSnapshotDestroy(keySet);
-
-    uniqueLoaders = TrieGetSize(valueSet);
-    TrieDestroy(valueSet);
-  }
-
-  console_print(id, "%d class loaders registered for %d extensions.", uniqueLoaders, count);
-  return PLUGIN_HANDLED;
-}
-#endif
-
 /*******************************************************************************
  * Natives
  ******************************************************************************/
@@ -509,7 +380,7 @@ public bool: native_registerClass(plugin, numParams) {
 
   if (!classes) {
     classes = TrieCreate();
-#if defined DEBUG_EXTENSIONS
+#if defined DEBUG_NATIVES
     assert classes;
     logd("Initialized classes container as celltrie %d", classes);
 #endif
@@ -831,98 +702,13 @@ public Trie: native_setUserClass(plugin, numParams) {
     apply(id, class);
   } else {
     pNextClass[id] = class;
-  }
-
 #if defined DEBUG_CLASS_CHANGES
-  logd("%N changed %s from %s to %s",
-      id, immediate ? "class" : "next class", oldClassName, newClassName);
+    logd("%N changed %s from %s to %s",
+        id, immediate ? "class" : "next class", oldClassName, newClassName);
 #endif
+  }
+  
   zm_onAfterClassChanged(id, class, newClassName, immediate);
 #undef newClassName
   return oldClass;
-}
-
-//native zm_registerClassLoader(const callback[], const extensions[], ...);
-public native_registerClassLoader(plugin, numParams) {
-#if defined DEBUG_NATIVES
-  if (!numParamsGreaterEqual(2, numParams)) {
-    return;
-  }
-#endif
-
-  new callback[32];
-  get_string(1, callback, charsmax(callback));
-  new const onLoadClass = CreateOneForward(plugin, callback, FP_STRING, FP_STRING);
-  if (!onLoadClass) {
-    ThrowIllegalArgumentException("Cannot register class loader without \"%s\" function", callback);
-    return;
-  }
-
-  if (!classLoaders) {
-    classLoaders = TrieCreate();
-#if defined DEBUG_LOADERS
-    assert classLoaders;
-    logd("Initialized classLoaders container as celltrie %d", classLoaders);
-#endif
-  }
-
-#if defined DEBUG_LOADERS
-  if (!classLoaderPlugins) {
-    classLoaderPlugins = TrieCreate();
-  }
-#endif
-
-  new extension[32];
-  for (new param = 2; param <= numParams; param++) {
-    get_string(param, extension, charsmax(extension));
-    if (isStringEmpty(extension)) {
-      logw("Cannot associate empty extension with a class loader");
-      continue;
-    }
-
-#if defined WARN_ON_EXTENSION_OVERWRITE
-    new bool: keyExists = TrieKeyExists(classLoaders, extension);
-    if (keyExists) {
-      logw("Overwriting existing class loader for extension \"%s\"", extension);
-    }
-#endif
-#if defined DEBUG_LOADERS
-    new name[32];
-    get_plugin(plugin, .filename = name, .len1 = charsmax(name));
-    name[strlen(name) - 5] = EOS;
-    logd("Associating extension \"%s\" with %s::%s", extension, name, callback);
-#endif
-    TrieSetCell(classLoaders, extension, onLoadClass);
-#if defined DEBUG_LOADERS
-    TrieSetCell(classLoaderPlugins, extension, plugin);
-#endif
-  }
-}
-
-//native zm_loadClass(const path[], const bool: recursive = false);
-public native_loadClass(plugin, numParams) {
-#if defined DEBUG_NATIVES
-  if (!numParamsEqual(2, numParams)) {
-    return;
-  }
-#endif
-
-  if (!classLoaders) {
-    logw("Cannot load classes, no class loaders have been registered!");
-    return;
-  }
-
-  new relativePath[256];
-  get_string(1, relativePath, charsmax(relativePath));
-
-  new path[256], len;
-  len = zm_getConfigsDir(path, charsmax(path));
-  len = resolvePath(path, charsmax(path), len, relativePath);
-
-  if (file_exists(path)) {
-    loadClass(path, len);
-  } else {
-    new bool: recursive = get_param(2);  
-    loadClasses(path, recursive);
-  }
 }

@@ -1,14 +1,16 @@
 #include <amxmodx>
 #include <logger>
 
+#include "include/classloader.inc"
+
 #include "include/zm/zm_classes.inc"
 #include "include/zm/zombies.inc"
 
-#define EXTENSION_NAME "Class Loader: smc"
+#define EXTENSION_NAME "ZM Classes Class Loader: smc"
 #define VERSION_STRING "1.0.0"
 
 #if defined ZM_COMPILE_FOR_DEBUG
-  //#define DEBUG_LOADER
+  #define DEBUG_LOADER
   //#define DEBUG_PARSER
 #else
   //#define DEBUG_LOADER
@@ -20,8 +22,7 @@ static classesLoaded;
 
 public zm_onInit() {
   LoadLogger(zm_getPluginId());
-
-  zm_registerClassLoader("onLoadClass", "smc");
+  cl_registerClassLoader("onLoadClass", "smc");
 }
 
 public zm_onInitExtension() {
@@ -42,8 +43,16 @@ stock getBuildId(buildId[], len) {
 }
 
 public onLoadClass(const path[], const extension[]) {
+  // TODO: This can maybe be cleaned up a bit
+  new tmp[PLATFORM_MAX_PATH];
+  getFileParentPath(tmp, charsmax(tmp), path);
+  getFileName(tmp, charsmax(tmp), tmp);
+  if (!equal(tmp, "classes")) {
+    return;
+  }
+  
 #if defined DEBUG_LOADER
-  logd("Attempting to parse \"%s\" as an SMC file...", path);
+  logd("Attempting to parse \"%s\" as an SMC class file...", path);
 #endif
 
   classesLoaded = 0;
@@ -67,7 +76,7 @@ public onLoadClass(const path[], const extension[]) {
 
 public SMCResult: onNewSection(SMCParser: handle, const name[]) {
   if (class) {
-    loge("class definitions cannot contain inner-sections", name);
+    loge("class definitions cannot contain inner-sections");
     return SMCParse_HaltFail;
   }
 
