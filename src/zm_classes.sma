@@ -388,7 +388,7 @@ public bool: native_registerClass(plugin, numParams) {
 
   new Trie: oldClass;
   keyExists = TrieGetCell(classes, key, oldClass);
-  zm_parseResource(key, value, charsmax(value));
+  parseResource(key, value, charsmax(value));
 
   new const bool: replace = get_param(2);
   if (keyExists) {

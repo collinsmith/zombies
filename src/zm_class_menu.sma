@@ -170,7 +170,7 @@ public isItemEnabled(id, menu, item) {
     return ITEM_DISABLED;
   }
 
-  zm_getClassPropertyName(class, ZM_CLASS_NAME, name, charsmax(name));
+  getClassPropertyName(class, ZM_CLASS_NAME, name, charsmax(name));
   fwReturn = zm_isClassEnabled(id, class, name);
   return fwReturn > ITEM_IGNORE ? fwReturn : ITEM_ENABLED;
 }
@@ -397,7 +397,7 @@ public Array: native_getUserClasses(plugin, numParams) {
   new const size = ArraySize(classes);
   for (new i = 0; i < size; i++) {
     class = ArrayGetCell(classes, i);
-    zm_getClassPropertyName(class, ZM_CLASS_NAME, name, charsmax(name));
+    getClassPropertyName(class, ZM_CLASS_NAME, name, charsmax(name));
     fwReturn = zm_isClassEnabled(id, class, name);
     if (fwReturn == ITEM_ENABLED) {
       ArrayPushCell(dst, class);
