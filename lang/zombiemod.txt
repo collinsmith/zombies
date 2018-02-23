@@ -9,6 +9,7 @@ ZM_TEAM_HUMAN=HUMAN
 ZM_TEAM_SPECTATOR=SPECTATOR
 
 ZM_CLASS_MENU_TITLE=Select a class:
+ZM_CLASS_ITEM=%s \d[\y%s\d]
 
 ZM_SWAP_SUCCESS=%N has been swapped!
 ZM_SWAP_FAIL=%N could not be swapped!

@@ -5,65 +5,36 @@
 #include <amxmodx>
 #include <logger>
 
+#include "include/stocks/debug_stocks.inc"
 #include "include/stocks/exception_stocks.inc"
 #include "include/stocks/param_stocks.inc"
+#include "include/stocks/simple_logger_stocks.inc"
 
-#include "include/zm/extension_t.inc"
+#include "include/zm/extension_consts.inc"
 #include "include/zm/zm_cfg.inc"
-#include "include/zm/zm_debug.inc"
 #include "include/zm/zm_i18n.inc"
 #include "include/zm/zm_misc.inc"
 #include "include/zm/zm_version.inc"
 
+#include "include/zm_internal_utils.inc"
+
 #if defined ZM_COMPILE_FOR_DEBUG
-  //#define DEBUG_CFG
-  //#define DEBUG_FORWARDS
-  //#define DEBUG_NATIVES
-  //#define DEBUG_EXTENSIONS
+  #define ASSERTIONS
+  #define DEBUG_NATIVES
+  #define DEBUG_FORWARDS
+  #define DEBUG_CFG
 #else
-  //#define DEBUG_CFG
-  //#define DEBUG_FORWARDS
+  //#define ASSERTIONS
   //#define DEBUG_NATIVES
-  //#define DEBUG_EXTENSIONS
+  //#define DEBUG_FORWARDS
+  //#define DEBUG_CFG
 #endif
 
-/** Throws an error if trying to register extensions before onInitExtension */
-#define ENFORCE_REGISTRATION_AFTER_INIT
-/** The initial number of extensions to allocate */
-#define INITIAL_EXTENSIONS_SIZE 16
-
-static fwReturn = 0;
-static onPrecache = INVALID_HANDLE;
-static onInit = INVALID_HANDLE;
-static onInitExtension = INVALID_HANDLE;
-static onExtensionRegistered = INVALID_HANDLE;
-
-static zmPluginId = INVALID_PLUGIN_ID;
-static Array: extensions, numExtensions;
-
-stock ZM_Extension: indexToExtension(value) return ZM_Extension:(value + 1);
-stock extensionToIndex(ZM_Extension: extension) return any:(extension) - 1;
-stock ZM_Extension: operator=(value) return ZM_Extension:(value);
-stock bool: operator==(ZM_Extension: extension, other) return any:(extension) == other;
-stock bool: operator!=(ZM_Extension: extension, other) return any:(extension) != other;
-stock bool: operator< (ZM_Extension: extension, other) return any:(extension) <  other;
-stock bool: operator<=(ZM_Extension: extension, other) return any:(extension) <= other;
-stock bool: operator> (ZM_Extension: extension, other) return any:(extension) >  other;
-stock bool: operator>=(ZM_Extension: extension, other) return any:(extension) >= other;
-
-public plugin_natives() {
-  register_library("zombies");
-
-  register_native("zm_registerExtension", "native_registerExtension");
-  register_native("zm_getNumExtensions", "native_getNumExtensions");
-  register_native("zm_getExtension", "native_getExtension");
-  register_native("zm_findExtension", "native_findExtension");
-  register_native("zm_getPluginId", "native_getPluginId");
-}
+static Trie: extensions;
 
 public plugin_precache() {
   register_plugin(ZM_MOD_NAME, ZM_VERSION_STRING, "Tirant");
-
+  
   new buildId[32];
   zm_getBuildId(buildId, charsmax(buildId));
 
@@ -71,26 +42,14 @@ public plugin_precache() {
   formatex(desc, charsmax(desc), "The version of %s used", ZM_MOD_NAME);
   create_cvar("zm_version", buildId, FCVAR_SPONLY, desc);
 
-#if defined ZM_COMPILE_FOR_DEBUG
-  SetGlobalLoggerVerbosity(DebugLevel);
-  SetLoggerVerbosity(DebugLevel);
-#endif
-
-  new status[16];
-  get_plugin(-1, .status = status, .len5 = charsmax(status));
-  if (!equal(status, "debug")) {
-    SetLoggerFormat(LogMessage, "[%5v] [%t] %s");
-  }
-
+  configureLog();
+  
   logi("Launching %s v%s...", ZM_MOD_NAME, buildId);
   logi("Copyright (C) Collin \"Tirant\" Smith");
-
+  
   new dictionary[32];
   zm_getDictionary(dictionary, charsmax(dictionary));
-  register_dictionary(dictionary);
-#if defined DEBUG_I18N
-  logd("Registered dictionary \"%s\"", dictionary);
-#endif
+  zm_registerDictionary(dictionary);
 
 #if defined DEBUG_CFG
   new temp[256];
@@ -102,276 +61,338 @@ public plugin_precache() {
   logd("ZM_CFG_FILE=%s", temp);
 #endif
 
-  registerConCmds();
-  zm_onPrecache();
+  assert ExecuteForwardOnce("zm_onPrecache");
+}
+
+configureLog() {
+#if defined ZM_COMPILE_FOR_DEBUG
+  SetGlobalLoggerVerbosity(DebugLevel);
+  SetLoggerVerbosity(DebugLevel);
+#endif
+  
+  new status[16];
+  get_plugin(-1, .status = status, .len5 = charsmax(status));
+  if (!equal(status, "debug")) {
+    SetLoggerFormat(LogMessage, "[%5v] [%t] %s");
+  }
 }
 
 public plugin_init() {
-  zm_onInit();
-  zm_onInitExtension();
+  registerConsoleCmds();
+  assert ExecuteForwardOnce("zm_onInit");
+  assert ExecuteForwardOnce("zm_onInitExtension");
 }
 
-public plugin_cfg() {
-  new cfg[256];
-  zm_getConfigsFile(cfg, charsmax(cfg));
-  logd("Executing %s", cfg);
-  server_cmd("exec \"%s\"", cfg);
-}
-
-registerConCmds() {
-#if defined DEBUG_COMMANDS
-  logd("Registering console commands...");
-#endif
-  
+registerConsoleCmds() {
   zm_registerConCmd(
       .command = "version",
       .callback = "onPrintVersion",
-      .desc = "Prints the version info of ZM",
+      .desc = fmt("Prints the version info of %s", ZM_MOD_NAME),
       .access = ADMIN_ALL);
 
   zm_registerConCmd(
       .command = "exts,extensions",
       .callback = "onPrintExtensions",
-      .desc = "Lists the registered extensions of ZM");
+      .desc = fmt("Lists the registered extensions of %s", ZM_MOD_NAME));
 }
 
-zm_onPrecache() {
-#if defined DEBUG_FORWARDS
-  assert onPrecache == INVALID_HANDLE;
-  logd("Creating forward for zm_onPrecache");
-#endif
-  onPrecache = CreateMultiForward("zm_onPrecache", ET_CONTINUE);
-#if defined DEBUG_FORWARDS
-  logd("onPrecache = %d", onPrecache);
-  logd("Forwarding zm_onPrecache");
-#endif
-  ExecuteForward(onPrecache, fwReturn);
-  DestroyForward(onPrecache);
-}
-
-zm_onInit() {
-#if defined DEBUG_FORWARDS
-  assert onInit == INVALID_HANDLE;
-  logd("Creating forward for zm_onInit");
-#endif
-  onInit = CreateMultiForward("zm_onInit", ET_CONTINUE);
-#if defined DEBUG_FORWARDS
-  logd("onInit = %d", onInit);
-  logd("Forwarding zm_onInit");
-#endif
-  ExecuteForward(onInit, fwReturn);
-  DestroyForward(onInit);
-}
-
-zm_onInitExtension() {
-#if defined DEBUG_FORWARDS
-  assert onInitExtension == INVALID_HANDLE;
-  logd("Creating forward for zm_onInitExtension");
-#endif
-  onInitExtension = CreateMultiForward("zm_onInitExtension", ET_CONTINUE);
-#if defined DEBUG_FORWARDS
-  logd("onInitExtension = %d", onInitExtension);
-  logd("Forwarding zm_onInitExtension");
-#endif
-  ExecuteForward(onInitExtension, fwReturn);
-  DestroyForward(onInitExtension);
-}
-
-zm_onExtensionRegistered(ZM_Extension: extension, data[extension_t]) {
-  if (onExtensionRegistered == INVALID_HANDLE) {
-#if defined DEBUG_FORWARDS
-    logd("Creating forward for zm_onExtensionRegistered");
-#endif
-    onExtensionRegistered = CreateMultiForward(
-        "zm_onExtensionRegistered", ET_CONTINUE,
-        FP_CELL, FP_STRING, FP_STRING, FP_STRING);
-#if defined DEBUG_FORWARDS
-    logd("onExtensionRegistered = %d", onExtensionRegistered);
-#endif
-  }
-
-#if defined DEBUG_FORWARDS
-  logd("Forwarding zm_onExtensionRegistered for %s", data[ext_Name]);
-#endif
-  ExecuteForward(onExtensionRegistered, fwReturn,
-      extension, data[ext_Name], data[ext_Version], data[ext_Desc]);
-}
-
-ZM_Extension: registerExtension(data[extension_t]) {
-#if defined DEBUG_EXTENSIONS
-  assert extensions;
-#endif
-  new const ZM_Extension: extension = indexToExtension(ArrayPushArray(extensions, data));
-  numExtensions++;
-#if defined DEBUG_EXTENSIONS
-  assert extension == numExtensions;
-  logd("Registered extension \"%s\" as index %d", data[ext_Name], extension);
-#endif
-  return extension;
+public plugin_cfg() {
+  new cfg[PLATFORM_MAX_PATH];
+  zm_getConfigsFile(cfg, charsmax(cfg));
+  logd("Executing %s", cfg);
+  server_cmd("exec \"%s\"", cfg);
 }
 
 /*******************************************************************************
- * Console Commands
+ * Command Callbacks
  ******************************************************************************/
 
 public onPrintVersion(id) {
   new buildId[32];
   zm_getBuildId(buildId, charsmax(buildId));
-  console_print(id, "%L (%L) v%s", id, ZM_NAME, id, ZM_NAME_SHORT, buildId);
+  console_print(id, "%l (%l) v%s", ZM_NAME, ZM_NAME_SHORT, buildId);
   return PLUGIN_HANDLED;
 }
 
 public onPrintExtensions(id) {
   console_print(id, "Extensions registered:");
+  
+  new size = 0;
   if (extensions) {
-    new extension[extension_t];
-    new maxName, maxVersion;
-    for (new i = 0; i < numExtensions; i++) {
-      ArrayGetArray(extensions, i, extension);
-      maxName = max(maxName, strlen(extension[ext_Name]));
-      maxVersion = max(maxVersion, strlen(extension[ext_Version]));
+    new len;
+    new plugin;
+    new filename[ZM_EXT_FILENAME_length];
+    new name[ZM_EXT_NAME_length];
+    new version[ZM_EXT_VERSION_length];
+    new status[16];
+
+    new Trie: extension;
+    new maxFilename, maxName, maxVersion;
+
+    new TrieIter: it;
+    for (it = getExtensionsIter(); !TrieIterEnded(it); TrieIterNext(it)) {
+      TrieIterGetCell(it, extension);
+
+      TrieGetString(extension, ZM_EXT_NAME, name, charsmax(name), len);
+      maxName = max(maxName, len);
+      
+      TrieGetString(extension, ZM_EXT_VERSION, version, charsmax(version), len);
+      maxVersion = max(maxVersion, len);
+
+      TrieGetString(extension, ZM_EXT_FILENAME, filename, charsmax(filename), len);
+      maxFilename = max(maxFilename, len);
     }
     
-    new fmt[32];
-    formatex(fmt, charsmax(fmt), "%%2d. %%%ds %%%ds %%s", maxName, maxVersion);
+    TrieIterDestroy(it);
+    
+    new headerFmt[32];
+    formatex(headerFmt, charsmax(headerFmt), "%%3s %%%ds %%%ds %%%ds %%s", maxName, maxVersion, maxFilename);
+    console_print(id, headerFmt, "#", "NAME", "VERSION", "FILE", "STATUS");
 
-    for (new i = 0; i < numExtensions; i++) {
-      ArrayGetArray(extensions, i, extension);
-      new status[16];
-      get_plugin(
-          .index = extension[ext_PluginId],
-          .status = status,
-          .len5 = charsmax(status));
-      console_print(id, fmt, i + 1, extension[ext_Name], extension[ext_Version], status);
+    new fmt[32];
+    formatex(fmt, charsmax(fmt), "%%2d. %%%ds %%%ds %%%ds %%s", maxName, maxVersion, maxFilename);
+    for (it = getExtensionsIter(); !TrieIterEnded(it); TrieIterNext(it), size++) {
+      TrieIterGetCell(it, extension);
+      TrieGetCell(extension, ZM_EXT_PLUGIN, plugin);
+      TrieGetString(extension, ZM_EXT_NAME, name, charsmax(name), len);
+      TrieGetString(extension, ZM_EXT_VERSION, version, charsmax(version), len);
+      TrieGetString(extension, ZM_EXT_FILENAME, filename, charsmax(filename), len);
+      get_plugin(plugin, .status = status, .len5 = charsmax(status));
+      console_print(id, fmt, size + 1, name, version, filename, status);
     }
+    
+    TrieIterDestroy(it);
   }
 
-  console_print(id, "%d extensions registered.", numExtensions);
+  console_print(id, "%d extensions registered.", size);
   return PLUGIN_HANDLED;
+}
+
+/*******************************************************************************
+ * Mutators
+ ******************************************************************************/
+
+registerExtension(const Trie: extension) {
+#if defined ASSERTIONS
+  assert extension;
+#endif
+  if (!extensions) {
+    extensions = TrieCreate();
+  }
+
+  new filename[32];
+  TrieGetString(extension, ZM_EXT_FILENAME, filename, charsmax(filename));
+  if (!TrieSetCell(extensions, filename, extension, false)) {
+    ThrowIllegalArgumentException("Extension already registered: %s", filename);
+    return;
+  }
+  
+#if defined DEBUG_NATIVES
+  new name[32];
+  TrieGetString(extension, ZM_EXT_NAME, name, charsmax(name));
+  logd("Registered extension \"%s\"", name);
+#endif
+  zm_onExtensionRegistered(extension, filename);
+}
+
+TrieIter: getExtensionsIter() {
+  return extensions
+      ? TrieIterCreate(extensions)
+      : TrieIterCreate(extensions = TrieCreate());
+}
+
+getNumExtensions() {
+  return extensions ? TrieGetSize(extensions) : 0;
+}
+
+Trie: findExtension(const filename[]) {
+  if (!extensions) {
+    return Invalid_Trie;
+  }
+
+  new Trie: extension;
+  if (TrieGetCell(extensions, filename, extension)) {
+    return extension;
+  }
+  
+  return Invalid_Trie;
+}
+
+Trie: findExtensionById(const plugin) {
+  new filename[ZM_EXT_FILENAME_length];
+  get_plugin(plugin, .filename = filename, .len1 = charsmax(filename));
+  return findExtension(filename);
+}
+
+bool: isValidExtension(const Trie: extension) {
+  if (extension <= Invalid_Trie) {
+    return false;
+  }
+  
+  new filename[ZM_EXT_FILENAME_length];
+  if (!TrieGetString(extension, ZM_EXT_FILENAME, filename, charsmax(filename))) {
+    return false;
+  }
+  
+  return findExtension(filename) > Invalid_Trie;
+}
+
+/*******************************************************************************
+ * Forwards
+ ******************************************************************************/
+
+zm_onExtensionRegistered(const Trie: extension, const filename[]) {
+#if defined ASSERTIONS
+  assert extension;
+  assert filename[0] != EOS;
+#endif
+#if defined DEBUG_FORWARDS
+  logd("Forwarding zm_onExtensionRegistered");
+#endif
+  static handle = INVALID_HANDLE;
+  if (handle == INVALID_HANDLE) {
+    CreateMultiForward(
+        "zm_onExtensionRegistered", ET_IGNORE,
+        FP_CELL, FP_STRING);
+  }
+  
+  ExecuteForward(handle, _, extension, filename);
 }
 
 /*******************************************************************************
  * Natives
  ******************************************************************************/
 
-//native zm_getPluginId();
-public native_getPluginId(plugin, numParams) {
-#if defined DEBUG_NATIVES
-  if (!numParamsEqual(0, numParams)) {
-    return INVALID_PLUGIN_ID;
-  }
-#endif
-
-  if (zmPluginId == INVALID_PLUGIN_ID) {
-    zmPluginId = get_plugin(-1);
-  }
-  
-  return zmPluginId;
+public plugin_natives() {
+  register_library("zombies");
+  zm_registerNative("getPluginId");
+  zm_registerNative("registerExtension");
+  zm_registerNative("getExtensionsIter");
+  zm_registerNative("getNumExtensions");
+  zm_registerNative("findExtension");
+  zm_registerNative("isValidExtension");
+  zm_registerNative("findExtensionById");
 }
 
-//native ZM_Extension: zm_registerExtension(const name[] = "",
-//                                          const version[] = "",
-//                                          const desc[] = "");
-public ZM_Extension: native_registerExtension(plugin, numParams) {
+stock Trie: operator=(const value) { return Trie:(value); }
+
+//native zm_getPluginId();
+public native_getPluginId(const plugin, const argc) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(3, numParams)) {
-    return Invalid_Extension;
-  }
+  if (!numParamsEqual(0, argc)) {}
 #endif
 
-#if defined ENFORCE_REGISTRATION_AFTER_INIT
-  if (!onInitExtension) {
-    ThrowIllegalStateException("Cannot register extensions outside of zm_onInitExtension");
-    return Invalid_Extension;
+  static pluginId = INVALID_PLUGIN_ID;
+  if (pluginId == INVALID_PLUGIN_ID) {
+    pluginId = get_plugin(-1);
+  }
+  
+  return pluginId;
+}
+
+//native Trie: zm_registerExtension(const name[] = "", const version[] = "", const desc[] = "");
+public Trie: native_registerExtension(const plugin, const argc) {
+#if defined DEBUG_NATIVES
+  if (!numParamsEqual(3, argc)) {
+    return Invalid_Trie;
   }
 #endif
-
-  if (!extensions) {
-    extensions = ArrayCreate(extension_t, INITIAL_EXTENSIONS_SIZE);
-    numExtensions = 0;
-#if defined DEBUG_EXTENSIONS
-    assert extensions;
-    logd("Initialized extensions container as cellarray %d", extensions);
+  
+  new len;
+  
+  new filename[ZM_EXT_FILENAME_length];
+  get_plugin(plugin, .filename = filename, .len1 = charsmax(filename));
+  
+  new name[ZM_EXT_NAME_length];
+  len = get_string(1, name, charsmax(name));
+  if (!len) {
+    len = copy(name, charsmax(name), filename);
+    name[len - 5] = EOS; // removes .amxx extension
+#if defined DEBUG_NATIVES
+    logd("Extension name empty, using \"%s\" instead", name);
 #endif
   }
 
-  new data[extension_t];
-  data[ext_PluginId] = plugin;
-  get_string(1, data[ext_Name], ext_Name_length);
-  if (isStringEmpty(data[ext_Name])) {
-    get_plugin(.index = plugin, .filename = data[ext_Name], .len1 = ext_Name_length);
-    data[ext_Name][strlen(data[ext_Name])-5] = EOS;
-#if defined DEBUG_EXTENSIONS
-    logd("Empty extension name specified, using \"%s\" instead", data[ext_Name]);
+  new version[ZM_EXT_VERSION_length];
+  get_string(2, version, charsmax(version));
+
+  new desc[ZM_EXT_DESC_length];
+  get_string(3, desc, charsmax(desc));
+
+  new const Trie: extension = TrieCreate(); {
+    TrieSetCell(extension, ZM_EXT_PLUGIN, plugin);
+    TrieSetString(extension, ZM_EXT_FILENAME, filename);
+    TrieSetString(extension, ZM_EXT_NAME, name);
+    TrieSetString(extension, ZM_EXT_VERSION, version);
+    TrieSetString(extension, ZM_EXT_DESC, desc);
+#if defined DEBUG_NATIVES
+    new toString[256];
+    TrieToString(extension, toString, charsmax(toString));
+    logd(toString);
 #endif
   }
 
-  get_string(2, data[ext_Version], ext_Version_length);
-  get_string(3, data[ext_Desc], ext_Desc_length);
-
-  new const ZM_Extension: extension = registerExtension(data);
-  zm_onExtensionRegistered(extension, data);
+  registerExtension(extension);  
   return extension;
 }
 
-//native bool: zm_getExtension(ZM_Extension: extension, data[extension_t]);
-public bool: native_getExtension(plugin, numParams) {
+//native TrieIter: zm_getExtensionsIter();
+public TrieIter: native_getExtensionsIter(const plugin, const argc) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(2, numParams)) {
-    return false;
-  }
+  if (!numParamsEqual(0, argc)) {}
 #endif
-
-  new const ZM_Extension: extension = get_param(1);
-  if (extension == Invalid_Extension) {
-    loge("Invalid extension specified: Invalid_Extension");
-    return false;
-  } else if (extension > numExtensions) {
-    loge("Invalid extension specified: %d", extension);
-    return false;
-  }
-
-#if defined DEBUG_EXTENSIONS
-  assert extensions;
-#endif
-  new data[extension_t];
-  ArrayGetArray(extensions, extensionToIndex(extension), data);
-  return true;
+  return getExtensionsIter();
 }
 
 //native zm_getNumExtensions();
-public native_getNumExtensions(plugin, numParams) {
+public native_getNumExtensions(const plugin, const argc) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(0, numParams)) {
-    return 0;
-  }
+  if (!numParamsEqual(0, argc)) {}
 #endif
-
-  return numExtensions;
+  return getNumExtensions();
 }
 
-//native ZM_Extension: zm_findExtension(const name[]);
-public ZM_Extension: native_findExtension(plugin, numParams) {
+//native Trie: zm_findExtension(const filename[]);
+public Trie: native_findExtension(const plugin, const argc) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams)) {
-    return Invalid_Extension;
+  if (!numParamsEqual(1, argc)) {
+    return Invalid_Trie;
   }
 #endif
 
-  if (!extensions) {
-    return Invalid_Extension;
+  new filename[ZM_EXT_FILENAME_length], len;
+  len = get_string(1, filename, charsmax(filename));
+  if (!len) {
+    return Invalid_Trie;
   }
   
-  new name[ext_Name_length + 1];
-  get_string(1, name, ext_Name_length);
+  return findExtension(filename);
+}
 
-  new data[extension_t];
-  for (new i = 0; i < numExtensions; i++) {
-    ArrayGetArray(extensions, i, data);
-    if (equali(name, data[ext_Name])) {
-      return indexToExtension(i);
-    }
+//native bool: zm_isValidExtension(const any: extension);
+public bool: native_isValidExtension(const plugin, const argc) {
+#if defined DEBUG_NATIVES
+  if (!numParamsEqual(1, argc)) {
+    return false;
   }
+#endif
 
-  return Invalid_Extension;
+  new const Trie: extension = get_param(1);
+  return isValidExtension(extension);
+}
+
+//native Trie: zm_findExtensionById(const plugin);
+public Trie: native_findExtensionById(const plugin, const argc) {
+#if defined DEBUG_NATIVES
+  if (!numParamsEqual(1, argc)) {
+    return Invalid_Trie;
+  }
+#endif
+
+  new pluginId = get_param(1);
+  if (pluginId <= INVALID_PLUGIN_ID) {
+    pluginId = plugin;
+  }
+  
+  return findExtensionById(pluginId);
 }

@@ -5,12 +5,12 @@
 
 #include "include/cs_weapon_restrictions/cs_weapon_restrictions.inc"
 
-#include "include/zm/zm_classes.inc"
 #include "include/zm/zombies.inc"
+#include "include/zm/zm_classes.inc"
 
 #if defined ZM_COMPILE_FOR_DEBUG
-  //#define DEBUG_LOOKUP
-  //#define DEBUG_RESTRICTIONS
+  #define DEBUG_LOOKUP
+  #define DEBUG_RESTRICTIONS
 #else
   //#define DEBUG_LOOKUP
   //#define DEBUG_RESTRICTIONS
@@ -90,7 +90,7 @@ stock getBuildId(buildId[], len) {
 }
 
 public zm_onApply(const id) {
-  new const Class: class = zm_getUserClass(id);
+  new const Trie: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_RESTRICTIONS
     logd("%N doesn't have a class, resetting", id);
@@ -99,8 +99,8 @@ public zm_onApply(const id) {
     return;
   }
 
-  static value[class_prop_value_length + 1];
-  zm_getClassProperty(class, ZM_CLASS_WEAPONS, value, charsmax(value));
+  static value[512];
+  TrieGetString(class, ZM_CLASS_WEAPONS, value, charsmax(value));
 
   new const allowed_weapons = parseWeapons(value);
   cs_setWeaponRestrictions(id, allowed_weapons, CSW_KNIFE, true);

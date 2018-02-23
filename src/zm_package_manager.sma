@@ -2,9 +2,6 @@
 
 #include "include/package_manager.inc"
 
-#include "include/stocks/path_stocks.inc"
-#include "include/stocks/string_utils.inc"
-
 #include "include/zm/zombies.inc"
 
 #define EXTENSION_NAME "Package Manager"

@@ -12,7 +12,7 @@
 #else
 #endif
 
-#define EXTENSION_NAME "zm_cmd_swap"
+#define EXTENSION_NAME "Swap Command"
 #define VERSION_STRING "1.0.0"
 
 public zm_onInit() {
@@ -58,26 +58,26 @@ public onSwap(id, player) {
   new const ZM_Team: team = zm_getUserTeam(player);
   new ZM_State_Change: result;
   if (team == ZM_TEAM_ZOMBIE) {
-    result = zm_cure(.id = player, .blockable = false, .respawn = true);
+    result = zm_cure(player, .blockable = false, .respawn = true);
   } else if (team == ZM_TEAM_HUMAN) {
-    result = zm_infect(.id = player, .blockable = false, .respawn = true);
+    result = zm_infect(player, .blockable = false, .respawn = true);
   } else {
     // TODO: Make output prettier
-    zm_printColor(id, "%L", id, "ZM_SWAP_FAIL", player);
+    zm_printColor(id, "%l", "ZM_SWAP_FAIL", player);
     return PLUGIN_HANDLED;
   }
 
   if (result == ZM_STATE_CHANGE_CHANGED) {
     // TODO: Make output prettier
-    zm_printColor(id, "%L", id, "ZM_SWAP_SUCCESS", player);
+    zm_printColor(id, "%l", "ZM_SWAP_SUCCESS", player);
     if (id != player) {
-      zm_printColor(player, "%L", player, "ZM_SWAP_CLIENT");
+      zm_printColor(player, "%l", "ZM_SWAP_CLIENT");
     }
     
     logi("%N has been swapped by %N", player, id);
   } else {
     // TODO: Make output prettier
-    zm_printColor(id, "%L", id, "ZM_SWAP_FAIL", player);
+    zm_printColor(id, "%l", "ZM_SWAP_FAIL", player);
   }
 
   return PLUGIN_HANDLED;

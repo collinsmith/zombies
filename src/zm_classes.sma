@@ -1,27 +1,42 @@
+/*
+// TODO: Documentation
+stock parseClassResource(const Trie: class, const property[], res[], len, id = LANG_SERVER) {
+  TrieGetString(class, property, res, len);
+  parseResourceFast(res, len, id);
+}
+
+// TODO: Documentation
+stock getClassPropertyName(const Trie: class, const property[], res[], len) {
+  TrieGetString(class, property, res, len);
+}
+
+// TODO: Documentation
+stock bool: getClassProperty(const Trie: class, const property[], res[], len, id = LANG_SERVER) {
+  new const bool: keyExists = TrieGetString(class, property, res, len);
+  parseResourceFast(res, len, id);
+  return keyExists;
+}
+*/
+
 #include <amxmodx>
 #include <logger>
 
 #include "include/stocks/param_stocks.inc"
 #include "include/stocks/debug_stocks.inc"
 
-#include "include/zm/zm_classes_consts.inc"
-#include "include/zm/zm_teams.inc"
 #include "include/zm/zombies.inc"
+#include "include/zm/zm_class_consts.inc"
+
+#include "include/zm_internal_utils.inc"
 
 #if defined ZM_COMPILE_FOR_DEBUG
+  #define ASSERTIONS
   #define DEBUG_NATIVES
-  //#define DEBUG_FORWARDS
-  #define DEBUG_REGISTRATION
-  #define DEBUG_ASSIGNMENTS
-  #define DEBUG_GET_CLASSES
-  #define DEBUG_CLASS_CHANGES
+  #define DEBUG_FORWARDS
 #else
+  //#define ASSERTIONS
   //#define DEBUG_NATIVES
   //#define DEBUG_FORWARDS
-  //#define DEBUG_REGISTRATION
-  //#define DEBUG_ASSIGNMENTS
-  //#define DEBUG_GET_CLASSES
-  //#define DEBUG_CLASS_CHANGES
 #endif
 
 #define EXTENSION_NAME "Class Manager"
@@ -29,53 +44,13 @@
 
 #define CLASSES_DICTIONARY "zm_classes.txt"
 
-/** Log a warning if registering a class which will overwrite an existing one */
-#define WARN_ON_CLASS_OVERWRITE
-/** Throw an error if operating on a class which isn't registered */
-#define ENFORCE_REGISTERED_CLASSES_ONLY
-/** Only forward class property change events if new value is different from current */
-#define CHECK_PROPERTY_CHANGED
-/** Invalid_Trie is used to reset a user's class to "null" */
-#define INVALID_TRIE_WILL_RESET_CLASS
-
-static fwReturn = 0;
-static onBeforeClassChanged = INVALID_HANDLE;
-static onClassChanged = INVALID_HANDLE;
-static onAfterClassChanged = INVALID_HANDLE;
-static onClassRegistered = INVALID_HANDLE;
-static onBeforeClassPropertyChanged = INVALID_HANDLE;
-static onClassPropertyChanged = INVALID_HANDLE;
-
 static Trie: classes;
-
-static key[class_prop_key_length + 1];
-static value[class_prop_value_length + 1];
+static key[32], value[512];
 
 static Trie: pClass[MAX_PLAYERS + 1];
 static Trie: pNextClass[MAX_PLAYERS + 1];
 
-stock Trie: toTrie(value) return Trie:(value);
-stock Trie: operator=(value) return toTrie(value);
-
-stock Array: toArray(value) return Array:(value);
-stock Array: operator=(value) return toArray(value);
-
-stock bool: operator=(value) return value > 0;
-
-public plugin_natives() {
-  register_library("zm_classes");
-
-  register_native("zm_registerClass", "native_registerClass");
-  register_native("zm_findClass", "native_findClass");
-  register_native("zm_setClassProperty", "native_setClassProperty");
-  register_native("zm_isClassRegistered", "native_isClassRegistered");
-
-  register_native("zm_getUserClass", "native_getUserClass");
-  register_native("zm_setUserClass", "native_setUserClass");
-
-  register_native("zm_getNumClasses", "native_getNumClasses");
-  register_native("zm_getClasses", "native_getClasses");
-}
+static blockedReason[256];
 
 public zm_onInit() {
   LoadLogger(zm_getPluginId());
@@ -93,278 +68,531 @@ public zm_onInitExtension() {
       .version = buildId,
       .desc = "Manages the classes");
 
-  register_dictionary(CLASSES_DICTIONARY);
-#if defined DEBUG_I18N
-  logd("Registering dictionary file \"%s\"", CLASSES_DICTIONARY);
-#endif
-
-  createForwards();
-  registerConCmds();
+  zm_registerDictionary(CLASSES_DICTIONARY);
+  
+  registerConsoleCommands();
 }
 
 stock getBuildId(buildId[], len) {
   return formatex(buildId, len, "%s [%s]", VERSION_STRING, __DATE__);
 }
 
-stock registerConCmds() {
-#if defined DEBUG_REGISTRATION
+registerConsoleCommands() {
+#if defined ZM_COMPILE_FOR_DEBUG
   zm_registerConCmd(
       .command = "classes",
       .callback = "onPrintClasses",
-      .desc = "Lists the registered classes of ZM");
+      .desc = "Lists the registered classes");
 #endif
 }
 
-createForwards() {
-  createClassChangeForwards();
+public client_disconnected(id) {
+  pClass[id] = pNextClass[id] = Invalid_Trie;
 }
 
-createClassChangeForwards() {
-  createOnBeforeClassChanged();
-  createOnClassChanged();
-  createOnAfterClassChanged();
-}
-
-createOnBeforeClassChanged() {
-#if defined DEBUG_FORWARDS
-  assert onBeforeClassChanged == INVALID_HANDLE;
-  logd("Creating forward zm_onBeforeClassChanged");
-#endif
-  onBeforeClassChanged = CreateMultiForward(
-      "zm_onBeforeClassChanged", ET_STOP,
-      FP_CELL, FP_CELL, FP_CELL, FP_CELL);
-#if defined DEBUG_FORWARDS
-  logd("onBeforeClassChanged = %d", onBeforeClassChanged);
-#endif
-}
-
-createOnClassChanged() {
-#if defined DEBUG_FORWARDS
-  assert onClassChanged == INVALID_HANDLE;
-  logd("Creating forward zm_onClassChanged");
-#endif
-  onClassChanged = CreateMultiForward(
-      "zm_onClassChanged", ET_CONTINUE,
-      FP_CELL, FP_CELL, FP_CELL);
-#if defined DEBUG_FORWARDS
-  logd("onClassChanged = %d", onClassChanged);
-#endif
-}
-
-createOnAfterClassChanged() {
-#if defined DEBUG_FORWARDS
-  assert onAfterClassChanged == INVALID_HANDLE;
-  logd("Creating forward zm_onAfterClassChanged");
-#endif
-  onAfterClassChanged = CreateMultiForward(
-      "zm_onAfterClassChanged", ET_CONTINUE,
-      FP_CELL, FP_CELL, FP_CELL);
-#if defined DEBUG_FORWARDS
-  logd("onAfterClassChanged = %d", onAfterClassChanged);
-#endif
-}
-
-zm_onClassRegistered(name[], Trie: class) {
-  if (onClassRegistered == INVALID_HANDLE) {
-#if defined DEBUG_FORWARDS
-    logd("Creating forward for zm_onClassRegistered");
-#endif
-    onClassRegistered = CreateMultiForward(
-        "zm_onClassRegistered", ET_CONTINUE,
-        FP_STRING, FP_CELL);
-#if defined DEBUG_FORWARDS
-    logd("onClassRegistered = %d", onClassRegistered);
-#endif
-  }
-
-#if defined DEBUG_FORWARDS
-  logd("Forwarding zm_onClassRegistered for %s", name);
-#endif
-  ExecuteForward(onClassRegistered, fwReturn, name, class);
-}
-
-zm_onBeforeClassPropertyChanged(Trie: class, key[], oldValue[], newValue[]) {
-  if (onBeforeClassPropertyChanged == INVALID_HANDLE) {
-#if defined DEBUG_FORWARDS
-    logd("Creating forward for zm_onBeforeClassPropertyChanged");
-#endif
-    onBeforeClassPropertyChanged = CreateMultiForward(
-        "zm_onBeforeClassPropertyChanged", ET_STOP,
-        FP_CELL, FP_STRING, FP_STRING, FP_STRING);
-#if defined DEBUG_FORWARDS
-    logd("onBeforeClassPropertyChanged = %d", onBeforeClassPropertyChanged);
-#endif
-  }
-  
-#if defined DEBUG_FORWARDS
-  logd("Forwarding zm_onBeforeClassFieldChanged for %d: \"%s\"", class, key);
-#endif
-  ExecuteForward(onBeforeClassPropertyChanged, fwReturn, class, key, oldValue, newValue);
-  return fwReturn;
-}
-
-zm_onClassPropertyChanged(Trie: class, key[], oldValue[], newValue[]) {
-  if (onClassPropertyChanged == INVALID_HANDLE) {
-#if defined DEBUG_FORWARDS
-    logd("Creating forward for zm_onClassPropertyChanged");
-#endif
-    onClassPropertyChanged = CreateMultiForward(
-        "zm_onClassPropertyChanged", ET_CONTINUE,
-        FP_CELL, FP_STRING, FP_STRING, FP_STRING);
-#if defined DEBUG_FORWARDS
-    logd("onClassPropertyChanged = %d", onClassPropertyChanged);
-#endif
-  }
-  
-#if defined DEBUG_FORWARDS
-  logd("Forwarding zm_onClassPropertyChanged for %d: \"%s\"", class, key);
-#endif
-  ExecuteForward(onClassPropertyChanged, fwReturn, class, key, oldValue, newValue);
-  return fwReturn;
-}
-
-zm_onBeforeClassChanged(id, Trie: class, bool: immediate, bool: blockable) {
-  assert onBeforeClassChanged != INVALID_HANDLE;
-#if defined DEBUG_FORWARDS
-  logd("Forwarding zm_onBeforeClassChanged(%d, %d, immediate=%s, blockable=%s) for %N",
-      id, class, immediate ? TRUE : FALSE, blockable ? TRUE : FALSE, id);
-#endif
-  ExecuteForward(onBeforeClassChanged, fwReturn, id, class, immediate, blockable);
-  return fwReturn;
-}
-
-zm_onClassChanged(id, Trie: class, name[], bool: immediate) {
-#if defined DEBUG_FORWARDS
-  logd("Calling zm_onClassChanged(%d, %s, immediate=%s) for %N",
-      id, name, immediate ? TRUE : FALSE, id);
-#else
-  #pragma unused name
-#endif
-  ExecuteForward(onClassChanged, fwReturn, id, class, immediate);
-}
-
-zm_onAfterClassChanged(id, Trie: class, name[], bool: immediate) {
-#if defined DEBUG_FORWARDS
-  logd("Calling zm_onAfterClassChanged(%d, %s, immediate=%s) for %N",
-      id, name, immediate ? TRUE : FALSE, id);
-#else
-  #pragma unused name
-#endif
-  ExecuteForward(onAfterClassChanged, fwReturn, id, class, immediate);
-}
-
-bool: isClassRegistered(const Trie: class) {
-  if (!class || !classes) {
-    return false;
-  }
-  
-  new len;
-  TrieGetString(class, ZM_CLASS_NAME, key, charsmax(key), len);
-  
-  new Trie: mapping;
-  new bool: containsKey = TrieGetCell(classes, key, mapping);
-  return containsKey && mapping == class;
-}
-
-apply(const id, const Trie: class) {
-  assert isValidId(id);
-#if defined DEBUG_CLASS_CHANGES
-  new const Trie: oldClass = pClass[id];
-  new oldClassName[32], newClassName[32];
-#if defined INVALID_TRIE_WILL_RESET_CLASS
-  if (class) {
-    zm_getClassProperty(class, ZM_CLASS_NAME, newClassName, charsmax(newClassName));
-  } else {
-    copy(newClassName, charsmax(newClassName), NULL);
-  }
-#else
-  zm_getClassProperty(class, ZM_CLASS_NAME, newClassName, charsmax(newClassName));
-#endif
-  if (oldClass) {
-    zm_getClassProperty(oldClass, ZM_CLASS_NAME, oldClassName, charsmax(oldClassName));
-  } else {
-    copy(oldClassName, charsmax(oldClassName), NULL);
-  }
-
-  logd("%N changed class from %s to %s", id, oldClassName, newClassName);
-#endif
-  pClass[id] = class;
-  if (is_user_alive(id)) {
-    zm_refresh(id);
-  }
-}
-
-public zm_onApply(const id) {
+public zm_onApply(const id, const bool: first) {
   new const Trie: nextClass = pNextClass[id];
   if (nextClass && nextClass != pClass[id]) {
     apply(id, nextClass);
     pNextClass[id] = Invalid_Trie;
-#if defined DEBUG_CLASS_CHANGES
-    logd("pNextClass[%d] = Invalid_Trie", id);
-#endif
+  }
+}
+
+stock TrieGetStringOrNull(const Trie: trie, const key[], value[], const len) {
+  if (trie) {
+    TrieGetString(trie, key, value, len);
+  } else {
+    copy(value, len, NULL);
   }
 }
 
 /*******************************************************************************
- * Console Commands
+ * Command Callbacks
  ******************************************************************************/
 
-#if defined DEBUG_REGISTRATION
+#if defined ZM_COMPILE_FOR_DEBUG
 public onPrintClasses(id) {
   console_print(id, "Classes:");
 
-  new count = 0;
+  new size = 0;
   if (classes) {
-    new Snapshot: keySet = TrieSnapshotCreate(classes);
-    count = TrieSnapshotLength(keySet);
-
-    new maxName;
-    for (new i = 0, len; i < count; i++) {
-      len = TrieSnapshotKeyBufferSize(keySet, i);
+    new maxName, len;
+    new TrieIter: it, Trie: class;
+    for (it = getClassesIter(); !TrieIterEnded(it); TrieIterNext(it)) {
+      len = TrieIterGetKey(it, key, charsmax(key));
       maxName = max(maxName, len);
     }
+    
+    TrieIterDestroy(it);
 
     new headerFmt[32];
     formatex(headerFmt, charsmax(headerFmt), "%%3s %%4s %%%ds %%s", maxName);
-    console_print(id, headerFmt, "#", "TRIE", "NAME", "DESCRIPTION");
+    console_print(id, headerFmt, "#", "TRIE", "ID", "NAME");
 
     new fmt[32];
     formatex(fmt, charsmax(fmt), "%%2d. %%-4d %%%ds %%s", maxName);
-
-    for (new i = 0, len; i < count; i++) {
-      len = TrieSnapshotGetKey(keySet, i, key, charsmax(key));
-
-      new Trie: class;
-      TrieGetCell(classes, key, class);
-
-      TrieGetString(class, ZM_CLASS_DESC, value, charsmax(value), len);
-
-      console_print(id, fmt, i + 1, class, key, value);
+    for (it = getClassesIter(); !TrieIterEnded(it); TrieIterNext(it), size++) {
+      TrieIterGetCell(it, class);
+      TrieIterGetKey(it, key, charsmax(key));
+      TrieGetString(class, ZM_CLASS_NAME, value, charsmax(value));
+      console_print(id, fmt, size + 1, class, key, value);
     }
-
-    TrieSnapshotDestroy(keySet);
+    
+    TrieIterDestroy(it);
   }
 
-  console_print(id, "%d classes registered.", count);
+  console_print(id, "%d classes registered.", size);
   return PLUGIN_HANDLED;
 }
 #endif
 
 /*******************************************************************************
+ * Mutators
+ ******************************************************************************/
+
+bool: registerClass(const Trie: class, const bool: replace = true) {
+#if defined ASSERTIONS
+  assert class;
+  assert TrieKeyExists(class, ZM_CLASS_NAME);
+#endif
+  if (!classes) {
+    classes = TrieCreate();
+  }
+  
+  if (!TrieGetString(class, ZM_CLASS_ID, key, charsmax(key))) {
+    TrieGetString(class, ZM_CLASS_NAME, key, charsmax(key));
+    stripResourceFast(key, charsmax(key));
+    TrieSetString(class, ZM_CLASS_ID, key);
+  }
+  
+  new Trie: oldClass;
+  if (TrieGetCell(classes, key, oldClass)) {
+    if (!replace) {
+      ThrowIllegalArgumentException("Class already exists: %s", key);
+    } else {
+      logw("Overwriting class %s: %d -> %d", key, oldClass, class);
+    }
+  }
+
+  new parentId[sizeof key];
+  if (TrieGetString(class, ZM_CLASS_PARENT, parentId, charsmax(parentId))) {
+    new const Trie: parent = findClass(parentId);
+    if (parent == Invalid_Trie) {
+      logw("Parent could not be located: %s", parent);
+    } else {
+      copyInfo(class, parent);
+    }
+  }
+  
+  TrieSetCell(classes, key, class, replace);
+  logd("Registered class %s", key);
+  zm_onClassRegistered(class, key);
+  return true;
+}
+
+copyInfo(const Trie: child, const Trie: parent) {
+#if defined ASSERTIONS
+  assert isValidTrie(child);
+  assert isValidClass(parent);
+#endif
+  new classId[32];
+  TrieGetString(child, ZM_CLASS_ID, classId, charsmax(classId));
+
+  new property[32];
+  new TrieIter: it;
+  for (it = TrieIterCreate(parent); !TrieIterEnded(it); TrieIterNext(it)) {
+    TrieIterGetKey(it, property, charsmax(property));
+    if (equal(property, ZM_CLASS_ID) || equal(property, ZM_CLASS_NAME)) {
+      continue;
+    } else if (!TrieKeyExists(child, property)) {
+      TrieGetString(parent, property, value, charsmax(value));
+      assert TrieSetString(child, property, value, .replace = false);
+      logd("%s %s=\"%s\"", classId, property, value);
+    }
+  }
+
+  TrieIterDestroy(it);
+}
+
+TrieIter: getClassesIter() {
+  return classes
+      ? TrieIterCreate(classes)
+      : TrieIterCreate(classes = TrieCreate());
+}
+
+getNumClasses() {
+  return classes ? TrieGetSize(classes) : 0;
+}
+
+Trie: findClass(const classId[]) {
+  if (!classes) {
+    return Invalid_Trie;
+  }
+
+  new Trie: class;
+  if (TrieGetCell(classes, classId, class)) {
+    return class;
+  }
+
+  return Invalid_Trie;
+}
+
+bool: isValidClass(const Trie: class) {
+  if (class <= Invalid_Trie) {
+    return false;
+  }
+
+  new classId[sizeof key];
+  if (!TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId))) {
+    return false;
+  }
+
+  return findClass(classId) > Invalid_Trie;
+}
+
+Trie: getUserClass(const id) {
+#if defined ASSERTIONS
+  assert isValidId(id);
+#endif
+  return pClass[id];
+}
+
+Trie: setUserClass(const id, const Trie: class, const bool: immediate = true, const bool: blockable = true) {
+#if defined ASSERTIONS
+  assert isValidId(id);
+  assert class == Invalid_Trie || isValidClass(class);
+#endif
+  new const Trie: oldClass = immediate ? pClass[id] : pNextClass[id];
+  if (class == oldClass) {
+    logd("%s unchanged for %N, ignoring", immediate ? "class" : "next class", id);
+    return oldClass;
+  }
+
+  new retVal = zm_onBeforeClassChanged(id, class, immediate, blockable);
+  if (blockable && retVal == PLUGIN_HANDLED) {
+    parseResourceFast(blockedReason, charsmax(blockedReason), id);
+    zm_onClassChangeBlocked(id, class, blockedReason);
+    return oldClass;
+  }
+  
+#define classId key
+  TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId));
+  zm_onClassChanged(id, class, classId, immediate);
+  if (immediate) {
+    apply(id, class);
+  } else {
+    pNextClass[id] = class;
+    logd("%N next class changed to %s", id, classId);
+  }
+
+  zm_onAfterClassChanged(id, class, classId, immediate);
+  return oldClass;
+#undef classId
+}
+
+apply(const id, const Trie: class) {
+#if defined ASSERTIONS
+  assert isValidId(id);
+  assert isValidClass(class);
+#endif
+#define classId key
+  TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId));
+  new const Trie: oldClass = pClass[id];
+  new oldClassId[32];
+  TrieGetStringOrNull(oldClass, ZM_CLASS_ID, oldClassId, charsmax(oldClassId));
+  logi("%N class change %s -> %s", id, oldClassId, classId);
+  pClass[id] = class;
+  zm_refresh(id);
+#undef classId
+}
+
+bool: setClassProperty(const Trie: class, const key[], const newValue[]) {
+#if defined ASSERTIONS
+  assert isValidClass(class);
+  assert key[0] != EOS;
+#endif
+  
+  new oldValue[sizeof value], len;
+  new bool: keyExists = TrieGetString(class, key, oldValue, charsmax(oldValue), len);
+  if (keyExists && len) {
+    if (equal(key, ZM_CLASS_ID)) {
+      loge("Class IDs are not allowed to change!");
+      return false;
+    } else if (equal(key, ZM_CLASS_PARENT)) {
+      loge("Class parents are not allowed to change!");
+      return false;
+    } else if (equal(oldValue, newValue)) {
+      return false;
+    }
+  }
+
+  new retVal = zm_onBeforeClassPropertyChanged(class, key, oldValue, newValue);
+  if (retVal == PLUGIN_HANDLED) {
+    parseResourceFast(blockedReason, charsmax(blockedReason));
+    zm_onClassPropertyChangeBlocked(class, key, newValue, blockedReason);
+    return false;
+  }
+
+  new classId[32];
+  TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId));
+  logd("%s::%s \"%s\" -> \"%s\"", classId, key, oldValue, newValue);
+  TrieSetString(class, key, newValue);
+  /* Not allowed right now
+  if (equal(key, ZM_CLASS_NAME)) {
+    TrieDeleteKey(classes, oldValue);
+
+    new strippedClassName[32];
+    stripResource(newValue, strippedClassName, charsmax(strippedClassName));
+    TrieSetCell(classes, strippedClassName, class);
+  }*/
+
+  zm_onClassPropertyChanged(class, key, oldValue, newValue);
+  return true;
+}
+
+Array: getUserClasses(const id) {
+#if defined ASSERTIONS
+  assert isValidId(id);
+#endif
+  new const Array: array = ArrayCreate();
+  new TrieIter: it, Trie: class;
+  for (it = getClassesIter(); !TrieIterEnded(it); TrieIterNext(it)) {
+    TrieIterGetCell(it, class);
+    ArrayPushCell(array, class);
+  }
+  
+  TrieIterDestroy(it);
+  return array;
+}
+
+/*******************************************************************************
+ * Forwards
+ ******************************************************************************/
+
+zm_onClassRegistered(const Trie: class, const classId[]) {
+#if defined ASSERTIONS
+  assert isValidTrie(class);
+#endif
+#if defined DEBUG_FORWARDS
+  logd("Forwarding zm_onClassRegistered(%s, %d)", classId, class);
+#endif
+  static handle = INVALID_HANDLE;
+  if (handle == INVALID_HANDLE) {
+    handle = CreateMultiForward(
+        "zm_onClassRegistered", ET_IGNORE,
+        FP_CELL, FP_STRING);
+  }
+  
+  assert ExecuteForward(handle, _, class, classId);
+}
+
+// TODO: This is not longer really applicable since zm_onIsClassEnabled
+zm_onBeforeClassChanged(const id, const Trie: class, const bool: immediate, const bool: blockable) {
+#if defined ASSERTIONS
+  assert isValidId(id);
+  assert class == Invalid_Trie || isValidClass(class);
+#endif
+#if defined DEBUG_FORWARDS
+  new classId[32];
+  TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId));
+  logd("Forwarding zm_onBeforeClassChanged(%N, %s, immediate=%s, blockable=%s)",
+      id, classId, immediate ? TRUE : FALSE, blockable ? TRUE : FALSE);
+#endif
+  static handle = INVALID_HANDLE;
+  if (handle == INVALID_HANDLE) {
+    handle = CreateMultiForward(
+        "zm_onBeforeClassChanged", ET_STOP,
+        FP_CELL, FP_CELL, FP_CELL, FP_CELL);
+  }
+
+  blockedReason[0] = EOS;
+  
+  new retVal;
+  assert ExecuteForward(handle, retVal, id, class, immediate, blockable);
+  return retVal;
+}
+
+zm_onClassChangeBlocked(const id, const Trie: class, const reason[]) {
+#if defined ASSERTIONS
+  assert isValidId(id);
+  assert class == Invalid_Trie || isValidClass(class);
+#endif
+#if defined DEBUG_FORWARDS
+  new classId[32];
+  TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId));
+  logd("Forwarding zm_onClassChangeBlocked(%N, %s, \"%s\")", id, classId, reason);
+#endif
+  static handle = INVALID_HANDLE;
+  if (handle == INVALID_HANDLE) {
+    handle = CreateMultiForward(
+        "zm_onClassChangeBlocked", ET_IGNORE,
+        FP_CELL, FP_CELL, FP_STRING);
+  }
+  
+  assert ExecuteForward(handle, _, id, class, reason);
+}
+
+zm_onClassChanged(const id, const Trie: class, const classId[], const bool: immediate) {
+#if defined ASSERTIONS
+  assert isValidId(id);
+  assert class == Invalid_Trie || isValidClass(class);
+#endif
+#if defined DEBUG_FORWARDS
+  logd("Forwarding zm_onClassChanged(%N, %s, immediate=%s)",
+      id, classId, immediate ? TRUE : FALSE);
+#endif
+  static handle = INVALID_HANDLE;
+  if (handle == INVALID_HANDLE) {
+    handle = CreateMultiForward(
+        "zm_onClassChanged", ET_IGNORE,
+        FP_CELL, FP_CELL, FP_STRING, FP_CELL);
+  }
+
+  assert ExecuteForward(handle, _, id, class, classId, immediate);
+}
+
+zm_onAfterClassChanged(const id, const Trie: class, const classId[], const bool: immediate) {
+#if defined ASSERTIONS
+  assert isValidId(id);
+  assert class == Invalid_Trie || isValidClass(class);
+#endif
+#if defined DEBUG_FORWARDS
+  logd("Forwarding zm_onAfterClassChanged(%N, %s, immediate=%s)",
+      id, classId, immediate ? TRUE : FALSE);
+#endif
+  static handle = INVALID_HANDLE;
+  if (handle == INVALID_HANDLE) {
+    handle = CreateMultiForward(
+        "zm_onAfterClassChanged", ET_IGNORE,
+        FP_CELL, FP_CELL, FP_STRING, FP_CELL);
+  }
+
+  assert ExecuteForward(handle, _, id, class, classId, immediate);
+}
+
+zm_onBeforeClassPropertyChanged(const Trie: class, const property[],
+                                const oldValue[], const newValue[]) {
+#if defined ASSERTIONS
+  assert isValidClass(class);
+  assert property[0] != EOS;
+#endif
+#if defined DEBUG_FORWARDS
+  new classId[32];
+  TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId));
+  logd("Forwarding zm_onBeforeClassPropertyChanged(%s, %s, oldValue=\"%s\", newValue=\"%s\")",
+      classId, property, oldValue, newValue);
+#endif
+  static handle = INVALID_HANDLE;
+  if (handle == INVALID_HANDLE) {
+    handle = CreateMultiForward(
+        "zm_onBeforeClassPropertyChanged", ET_STOP,
+        FP_CELL, FP_STRING, FP_STRING, FP_STRING);
+  }
+
+  blockedReason[0] = EOS;
+  
+  new retVal;
+  assert ExecuteForward(handle, retVal, class, property, oldValue, newValue);
+  return retVal;
+}
+
+zm_onClassPropertyChangeBlocked(const Trie: class, const property[],
+                                const newValue[], const reason[]) {
+#if defined ASSERTIONS
+  assert isValidClass(class);
+#endif
+#if defined DEBUG_FORWARDS
+  new classId[32];
+  TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId));
+  logd("Forwarding zm_onClassPropertyChangeBlocked(%s, %s, newValue=\"%s\", reason=\"%s\")",
+      classId, property, newValue, reason);
+#endif
+  static handle = INVALID_HANDLE;
+  if (handle == INVALID_HANDLE) {
+    handle = CreateMultiForward(
+        "zm_onClassPropertyChangeBlocked", ET_IGNORE,
+        FP_CELL, FP_STRING, FP_STRING, FP_STRING);
+  }
+  
+  assert ExecuteForward(handle, _, class, property, newValue, reason);
+}
+
+zm_onClassPropertyChanged(const Trie: class, const property[],
+                          const oldValue[], const newValue[]) {
+#if defined ASSERTIONS
+  assert isValidClass(class);
+#endif
+#if defined DEBUG_FORWARDS
+  new classId[32];
+  TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId));
+  logd("Forwarding zm_onClassPropertyChanged(%s, %s, oldValue=\"%s\", newValue=\"%s\")",
+      classId, property, oldValue, newValue);
+#endif
+  static handle = INVALID_HANDLE;
+  if (handle == INVALID_HANDLE) {
+    handle = CreateMultiForward(
+        "zm_onClassPropertyChanged", ET_IGNORE,
+        FP_CELL, FP_STRING, FP_STRING, FP_STRING);
+  }
+
+  assert ExecuteForward(handle, _, class, property, oldValue, newValue);
+}
+
+zm_onIsClassEnabled(const id, const Trie: class, const classId[]) {
+#if defined ASSERTIONS
+  assert isValidId(id);
+  assert isValidClass(class);
+#endif
+#if defined DEBUG_FORWARDS
+  logd("Forwarding zm_onIsClassEnabled(%N, %s)", id, classId);
+#endif
+  static handle = INVALID_HANDLE;
+  if (handle == INVALID_HANDLE) {
+    handle = CreateMultiForward(
+        "zm_onIsClassEnabled", ET_STOP2,
+        FP_CELL, FP_CELL, FP_STRING);
+  }
+
+  blockedReason[0] = EOS;
+  
+  new retVal;
+  assert ExecuteForward(handle, retVal, id, class, classId);
+  return retVal;
+}
+
+/*******************************************************************************
  * Natives
  ******************************************************************************/
 
+public plugin_natives() {
+  register_library("zm_classes");
+  zm_registerNative("registerClass");
+  zm_registerNative("getClassesIter");
+  zm_registerNative("getNumClasses");
+  zm_registerNative("findClass");
+  zm_registerNative("isValidClass");
+  zm_registerNative("setClassProperty");
+  zm_registerNative("getUserClass");
+  zm_registerNative("setUserClass");
+  zm_registerNative("setClassBlockedReason");
+  zm_registerNative("setClassPropertyBlockedReason");
+  zm_registerNative("isClassEnabled");
+  zm_registerNative("getUserClasses");
+}
+
+stock bool: operator=(const value) { return value > 0; }
+stock Trie: operator=(const value) { return Trie:(value); }
+
 //native bool: zm_registerClass(const Trie: class, const bool: replace = true);
-public bool: native_registerClass(plugin, numParams) {
+public bool: native_registerClass(const plugin, const argc) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(2, numParams)) {
+  if (!numParamsEqual(2, argc)) {
     return false;
   }
 #endif
 
   new const Trie: class = get_param(1);
-  if (!class) {
-    ThrowIllegalArgumentException("Invalid class specified: %d", class);
+  if (!isValidTrie(class)) {
     return false;
   }
 
@@ -378,337 +606,190 @@ public bool: native_registerClass(plugin, numParams) {
     return false;
   }
 
-  if (!classes) {
-    classes = TrieCreate();
-#if defined DEBUG_NATIVES
-    assert classes;
-    logd("Initialized classes container as celltrie %d", classes);
-#endif
-  }
-
-  new Trie: oldClass;
-  keyExists = TrieGetCell(classes, key, oldClass);
-  parseResource(key, value, charsmax(value));
-
   new const bool: replace = get_param(2);
-  if (keyExists) {
-    if (!replace) {
-      ThrowIllegalArgumentException("Class named [%s] \"%s\" already exists!", key, value);
-      return false;
-#if defined WARN_ON_CLASS_OVERWRITE
-    } else {
-      logw("Overwriting class [%s] \"%s\" (%d -> %d)", key, value, oldClass, class);
-#endif
-    }
-  }
-  
-  TrieSetCell(classes, key, class, replace);
-  
-#if defined DEBUG_REGISTRATION
-  new dst[2048];
-  TrieToString(class, dst, charsmax(dst));
-  logd("Class: %s", dst);
-  logd("Registered class [%s] \"%s\" as Trie: %d", key, value, class);
-#endif
+  return registerClass(class, replace);
+}
 
-  zm_onClassRegistered(key, class);
-  return true;
+//native TrieIter: zm_getClassesIter(); 
+public TrieIter: native_getClassesIter(const plugin, const argc) {
+#if defined DEBUG_NATIVES
+  if (!numParamsEqual(0, argc)) {}
+#endif
+  return getClassesIter();
+}
+
+//native zm_getNumClasses();
+public native_getNumClasses(const plugin, const argc) {
+#if defined DEBUG_NATIVES
+  if (!numParamsEqual(0, argc)) {}
+#endif
+  return getNumClasses();
 }
 
 //native Trie: zm_findClass(const name[]);
-public Trie: native_findClass(plugin, numParams) {
+public Trie: native_findClass(const plugin, const argc) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams)) {
+  if (!numParamsEqual(1, argc)) {
     return Invalid_Trie;
   }
 #endif
 
-  if (!classes) {
-    logw("Calling zm_findClass before any classes have been registered");
+  new len = get_string(1, value, charsmax(value));
+  if (!len) {
     return Invalid_Trie;
   }
 
-  new len = get_string(1, key, charsmax(key));
-  key[len] = EOS;
-
-  new Trie: class;
-  new bool: keyExists = TrieGetCell(classes, key, class);
-  if (!keyExists) {
-    return Invalid_Trie;
-  }
-
-  return class;
+  return findClass(value);
 }
 
-//native bool: zm_setClassProperty(const Trie: class, const key[], const value[]);
-public bool: native_setClassProperty(plugin, numParams) {
+//native bool: zm_isValidClass(const any: class);
+public bool: native_isValidClass(const plugin, const argc) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(3, numParams)) {
+  if (!numParamsEqual(1, argc)) {
     return false;
   }
 #endif
 
   new const Trie: class = get_param(1);
-  if (!class) {
+  return isValidClass(class);
+}
+
+//native bool: zm_setClassProperty(const Trie: class, const key[], const value[]);
+public bool: native_setClassProperty(const plugin, const argc) {
+#if defined DEBUG_NATIVES
+  if (!numParamsEqual(3, argc)) {
+    return false;
+  }
+#endif
+  
+  new const Trie: class = get_param(1);
+  if (!isValidClass(class)) {
     ThrowIllegalArgumentException("Invalid class specified: %d", class);
     return false;
   }
 
-#if defined ENFORCE_REGISTERED_CLASSES_ONLY
-  if (!isClassRegistered(class)) {
-    ThrowIllegalArgumentException("Cannot perform operations on an unregistered class: %d", class);
-    return false;
-  }
-#else
-  if (!classes) {
-    logw("Calling zm_setClassProperty before any classes have been registered");
-    return false;
-  }
-#endif
-
-  new len;
-  len = get_string(2, key, charsmax(key));
-  len = get_string(3, value, charsmax(value));
-
-  new oldValue[class_prop_value_length + 1];
-  TrieGetString(class, key, oldValue, charsmax(oldValue), len);
-#if defined CHECK_PROPERTY_CHANGED
-  if (equal(value, oldValue)) {
-    logd("Value of %s unchanged in %d: \"%s\"", key, class, value);
-    return false;
-  }
-#endif
-
-  fwReturn = zm_onBeforeClassPropertyChanged(class, key, oldValue, value);
-  if (fwReturn == PLUGIN_HANDLED) {
-#if defined DEBUG_ASSIGNMENTS
-    logd("%d [%s] \"%s\" -> \"%s\" was rejected", class, key, oldValue, value);
-#endif
-    return false;
-  }
-
-#if defined DEBUG_ASSIGNMENTS
-  logd("Setting %d [%s] \"%s\" -> \"%s\"", class, key, oldValue, value);
-#endif
-  TrieSetString(class, key, value);
-  if (equal(key, ZM_CLASS_NAME)) {
-#if defined DEBUG_REGISTRATION
-    logd("Updating class table reference \"%s\" -> \"%s\"", oldValue, value);
-#endif
-#if defined ENFORCE_REGISTERED_CLASSES_ONLY
-    TrieDeleteKey(classes, oldValue);
-    TrieSetCell(classes, value, class);
-#else
-    if (classes) {
-      TrieDeleteKey(classes, oldValue);
-      TrieSetCell(classes, value, class);
-    }
-#endif
-  }
-
-  zm_onClassPropertyChanged(class, key, oldValue, value);
-  return true;
-}
-
-//native zm_reloadClass(const Trie: class);
-public native_reloadClass(plugin, numParams) {
-#if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams)) {
-    return;
-  }
-#endif
-
-  new const Trie: class = get_param(1);
-#if defined ENFORCE_REGISTERED_CLASSES_ONLY
-  if (!isClassRegistered(class)) {
-    ThrowIllegalArgumentException("Cannot perform operations on an unregistered class: %d", class);
-    return;
-  }
-#endif
-
-  new Snapshot: keySet = TrieSnapshotCreate(class);
-  new const count = TrieSnapshotLength(keySet);
-  for (new i = 0, len; i < count; i++) {
-    len = TrieSnapshotGetKey(keySet, i, key, charsmax(key));
-    TrieGetString(class, key, value, charsmax(value), len);
-
-#if defined DEBUG_ASSIGNMENTS
-    logd("Loading %d [%s] = \"%s\"", class, key, value);
-#endif
-    zm_onClassPropertyChanged(class, key, "", value);
-  }
-
-  TrieSnapshotDestroy(keySet);
-}
-
-//native bool: zm_isClassRegistered(const Trie: class);
-public bool: native_isClassRegistered(plugin, numParams) {
-#if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams)) {
-    return false;
-  }
-#endif
-
-  new const Trie: class = get_param(1);
-  return isClassRegistered(class);
-}
-
-//native zm_getNumClasses();
-public native_getNumClasses(plugin, numParams) {
-#if defined DEBUG_NATIVES
-  if (!numParamsEqual(0, numParams)) {
-    return 0;
-  }
-#endif
-
-  if (!classes) {
-    return 0;
-  }
-
-  return TrieGetSize(classes);
-}
-
-//native Array: zm_getClasses(const Array: dst = Invalid_Array);
-public Array: native_getClasses(plugin, numParams) {
-#if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams)) {
-    return Invalid_Array;
-  }
-#endif
-
-  new Array: dst = get_param(1);
-  if (dst) {
-#if defined DEBUG_GET_CLASSES
-    logd("clearing input cellarray %d", dst);
-#endif
-    ArrayClear(dst);
-  } else {
-    dst = ArrayCreate();
-#if defined DEBUG_GET_CLASSES
-    logd("dst cellarray initialized as cellarray %d", dst);
-#endif
-  }
-  
-  if (!classes) {
-    return dst;
-  }
-
-  new Snapshot: keySet = TrieSnapshotCreate(classes);
-  new const count = TrieSnapshotLength(keySet);
-  for (new i = 0, Trie: class; i < count; i++) {
-    TrieSnapshotGetKey(keySet, i, key, charsmax(key));
-    TrieGetCell(classes, key, class);
-    ArrayPushCell(dst, class);
-#if defined DEBUG_GET_CLASSES
-    logd("dst[%d]=%d:[%s]", i, class, key);
-#endif
-  }
-
-  TrieSnapshotDestroy(keySet);
-  return dst;
+  get_string(2, key, charsmax(key));
+  get_string(3, value, charsmax(value));
+  return setClassProperty(class, key, value);
 }
 
 //native Trie: zm_getUserClass(const id);
-public Trie: native_getUserClass(plugin, numParams) {
+public Trie: native_getUserClass(const plugin, const argc) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(1, numParams)) {
+  if (!numParamsEqual(1, argc)) {
     return Invalid_Trie;
   }
 #endif
 
   new const id = get_param(1);
-  if (!isValidId(id)) {
-    ThrowIllegalArgumentException("Invalid player id specified: %d", id);
+  if (!isValidConnected(id)) {
     return Invalid_Trie;
   }
 
-  return pClass[id];
+  return getUserClass(id);
 }
 
-//native Trie: zm_setUserClass(const id, const Trie: class);
-public Trie: native_setUserClass(plugin, numParams) {
+//native Class: zm_setUserClass(const id, const Trie: class,
+//                              const bool: immediate = true,
+//                              const bool: blockable = true);
+public Trie: native_setUserClass(const plugin, const argc) {
 #if defined DEBUG_NATIVES
-  if (!numParamsEqual(4, numParams)) {
+  if (!numParamsEqual(4, argc)) {
     return Invalid_Trie;
   }
 #endif
 
   new const id = get_param(1);
-  if (!isValidId(id)) {
-    ThrowIllegalArgumentException("Invalid player id specified: %d", id);
+  if (!isValidConnected(id)) {
     return Invalid_Trie;
   }
 
   new const Trie: class = get_param(2);
-#if !defined INVALID_TRIE_WILL_RESET_CLASS
-  if (!class) {
+  if (class != Invalid_Trie && !isValidClass(class)) {
     ThrowIllegalArgumentException("Invalid class specified: %d", class);
     return Invalid_Trie;
   }
-#endif
 
-#if defined ENFORCE_REGISTERED_CLASSES_ONLY
-#if defined INVALID_TRIE_WILL_RESET_CLASS
-  if (class != Invalid_Trie && !isClassRegistered(class)) {
-#else
-  if (!isClassRegistered(class)) {
-#endif
-    ThrowIllegalArgumentException("Cannot assign player to an unregistered class: %d", class);
-    return Invalid_Trie;
-  }
-#endif
+  new const bool: immediate = get_param(3);
+  new const bool: blockable = get_param(4);
+  return setUserClass(id, class, immediate, blockable);
+}
 
-  new const bool: immediate = bool:(get_param(3));
-  new const Trie: oldClass = immediate ? pClass[id] : pNextClass[id];
-  if (class == oldClass) {
-#if defined DEBUG_CLASS_CHANGES
-    logd("%s unchanged for %N, ignoring", immediate ? "class" : "next class", id);
-#endif
-    return oldClass;
+//native zm_setClassBlockedReason(const reason[]);
+public native_setClassBlockedReason(const plugin, const argc) {
+#if defined DEBUG_NATIVES
+  if (!numParamsEqual(1, argc)) {
+    return -1;
   }
-
-#define newClassName key
-#if defined INVALID_TRIE_WILL_RESET_CLASS
-  if (class) {
-    zm_getClassProperty(class, ZM_CLASS_NAME, newClassName, charsmax(newClassName));
-  } else {
-    copy(newClassName, charsmax(newClassName), NULL);
-  }
-#else
-  zm_getClassProperty(class, ZM_CLASS_NAME, newClassName, charsmax(newClassName));
 #endif
   
-#if defined DEBUG_FORWARDS || defined DEBUG_CLASS_CHANGES
-  new oldClassName[32];
-  if (oldClass) {
-    zm_getClassProperty(oldClass, ZM_CLASS_NAME, oldClassName, charsmax(oldClassName));
-  } else {
-    copy(oldClassName, charsmax(oldClassName), NULL);
+  new const len = get_string(1, blockedReason, charsmax(blockedReason));
+  blockedReason[len] = EOS;
+  return len;
+}
+
+//native zm_setClassPropertyBlockedReason(const reason[]);
+public native_setClassPropertyBlockedReason(const plugin, const argc) {
+  return native_setClassBlockedReason(plugin, argc);
+}
+
+//native bool: zm_isClassEnabled(const id, const Trie: class);
+public bool: native_isClassEnabled(const plugin, const argc) {
+#if defined DEBUG_NATIVES
+  if (!numParamsEqual(2, argc)) {
+    return false;
   }
 #endif
 
-  new const bool: blockable = bool:(get_param(4));
-  fwReturn = zm_onBeforeClassChanged(id, class, immediate, blockable);
-  if (fwReturn == PLUGIN_HANDLED && blockable) {
-#if defined DEBUG_CLASS_CHANGES
-    logd("%s change on %N from \"%s\" -> \"%s\" was rejected",
-        immediate ? "class" : "next class", oldClassName, newClassName);
-#endif
-    return oldClass;
+  new const id = get_param(1);
+  if (!isValidConnected(id)) {
+    return false;
   }
 
-  zm_onClassChanged(id, class, newClassName, immediate);
-  if (immediate) {
-    apply(id, class);
-  } else {
-    pNextClass[id] = class;
-#if defined DEBUG_CLASS_CHANGES
-    logd("%N changed %s from %s to %s",
-        id, immediate ? "class" : "next class", oldClassName, newClassName);
-#endif
+  new const Trie: class = get_param(2);
+  if (!isValidClass(class)) {
+    ThrowIllegalArgumentException("Invalid class specified: %d", class);
+    return false;
   }
   
-  zm_onAfterClassChanged(id, class, newClassName, immediate);
-#undef newClassName
-  return oldClass;
+  new classId[sizeof key];
+  TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId));
+  return zm_onIsClassEnabled(id, class, classId) <= ITEM_ENABLED;
+}
+
+//native Array: zm_getUserClasses(const id);
+public Array: native_getUserClasses(const plugin, const argc) {
+#if defined DEBUG_NATIVES
+  if (!numParamsEqual(1, argc)) {
+    return Invalid_Array;
+  }
+#endif
+
+  new const id = get_param(1);
+  if (!isValidConnected(id)) {
+    return Invalid_Array;
+  }
+
+  return getUserClasses(id);
+}
+
+stock bool: isValidTrie(const any: trie) {
+  if (trie <= Invalid_Trie) {
+    ThrowIllegalArgumentException("Invalid trie specified: %d", trie);
+    return false;
+  }
+
+  return true;
+}
+
+stock bool: isValidConnected(const id) {
+  if (!isValidId(id)) {
+    ThrowIllegalArgumentException("Invalid player id specified: %d", id);
+    return false;
+  } else if (!is_user_connected(id)) {
+    ThrowIllegalArgumentException("Player with id is not connected: %d", id);
+    return false;
+  }
+
+  return true;
 }

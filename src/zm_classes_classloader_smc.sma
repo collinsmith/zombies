@@ -3,15 +3,15 @@
 
 #include "include/classloader/classloader.inc"
 
-#include "include/zm/zm_classes.inc"
 #include "include/zm/zombies.inc"
+#include "include/zm/zm_classes.inc"
 
 #define EXTENSION_NAME "ZM Classes Class Loader: smc"
 #define VERSION_STRING "1.0.0"
 
 #if defined ZM_COMPILE_FOR_DEBUG
   #define DEBUG_LOADER
-  //#define DEBUG_PARSER
+  #define DEBUG_PARSER
 #else
   //#define DEBUG_LOADER
   //#define DEBUG_PARSER
@@ -21,7 +21,10 @@ static Trie: class;
 static classesLoaded;
 
 public zm_onInit() {
-  LoadLogger(zm_getPluginId());
+#if defined ZM_COMPILE_FOR_DEBUG
+  SetLoggerVerbosity(DebugLevel);
+  SetGlobalLoggerVerbosity(DebugLevel);
+#endif
   cl_registerClassLoader("onLoadClass", "smc");
 }
 
@@ -106,7 +109,7 @@ public SMCResult: onKeyValue(SMCParser: handle, const key[], const value[]) {
 
   TrieSetString(class, key, value);
 #if defined DEBUG_PARSER
-  logd("%d [%s]=\"%s\"", class, key, value);
+  logd("%d %s=\"%s\"", class, key, value);
 #endif
   return SMCParse_Continue;
 }

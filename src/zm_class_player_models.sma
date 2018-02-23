@@ -6,12 +6,12 @@
 #include "include/stocks/path_stocks.inc"
 #include "include/stocks/precache_stocks.inc"
 
-#include "include/zm/zm_classes.inc"
 #include "include/zm/zombies.inc"
+#include "include/zm/zm_classes.inc"
 
 #if defined ZM_COMPILE_FOR_DEBUG
-  //#define DEBUG_PRECACHING
-  //#define DEBUG_APPLICATION
+  #define DEBUG_PRECACHING
+  #define DEBUG_APPLICATION
 #else
   //#define DEBUG_PRECACHING
   //#define DEBUG_APPLICATION
@@ -41,9 +41,9 @@ stock getBuildId(buildId[], len) {
   return formatex(buildId, len, "%s [%s]", VERSION_STRING, __DATE__);
 }
 
-public zm_onClassRegistered(const name[], const Class: class) {
+public zm_onClassRegistered(const Trie: class, const classId[]) {
   new model[32];
-  zm_getClassProperty(class, ZM_CLASS_MODEL, model, charsmax(model));
+  TrieGetString(class, ZM_CLASS_MODEL, model, charsmax(model));
 
   new path[256];
   BuildPlayerModelPath(path, charsmax(path), model);
@@ -51,7 +51,7 @@ public zm_onClassRegistered(const name[], const Class: class) {
 }
 
 public zm_onApply(const id) {
-  new const Class: class = zm_getUserClass(id);
+  new const Trie: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_APPLICATION
     logd("%N doesn't have a class, resetting", id);
@@ -61,7 +61,7 @@ public zm_onApply(const id) {
   }
 
   static value[32];
-  zm_getClassProperty(class, ZM_CLASS_MODEL, value, charsmax(value));
+  TrieGetString(class, ZM_CLASS_MODEL, value, charsmax(value));
 
 #if defined DEBUG_APPLICATION
   logd("Changing player model of %N to \"%s\"", id, value);

@@ -4,11 +4,11 @@
 #include <logger>
 #include <reapi>
 
-#include "include/zm/zm_classes.inc"
 #include "include/zm/zombies.inc"
+#include "include/zm/zm_classes.inc"
 
 #if defined ZM_COMPILE_FOR_DEBUG
-  //#define DEBUG_MAXSPEED
+  #define DEBUG_MAXSPEED
 #else
   //#define DEBUG_MAXSPEED
 #endif
@@ -52,11 +52,11 @@ public onResetMaxSpeed(id) {
   maxspeed = fMaxspeed[id];
   if (maxspeed <= RAW_VALUE_THRESHOLD) {
 #if defined DEBUG_MAXSPEED
-  logd("maxspeed below threshold, treating as a multiplier");
+    logd("%N's maxspeed below threshold, treating as a multiplier", id);
 #endif
     new activeItem = get_member(id, m_pActiveItem);
     if (activeItem <= 0) {
-      logd("maxspeed below threshold, but active item = %d", activeItem);
+      logd("%N's active item = %d, maxspeed ignored", id, activeItem);
       return;
     }
     
@@ -85,7 +85,7 @@ stock Float: getWeaponMaxspeed(csw) {
 }
 
 public zm_onApply(const id) {
-  new const Class: class = zm_getUserClass(id);
+  new const Trie: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_MAXSPEED
     logd("%N doesn't have a class, resetting", id);
@@ -95,12 +95,12 @@ public zm_onApply(const id) {
   }
   
   static value[8];
-  new const bool: hasProperty = zm_getClassProperty(class, ZM_CLASS_MAXSPEED, value, charsmax(value));
+  new const bool: hasProperty = TrieGetString(class, ZM_CLASS_MAXSPEED, value, charsmax(value));
   if (!hasProperty) {
 #if defined DEBUG_MAXSPEED
-    new key[class_prop_key_length + 1];
-    zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    logd("Ignoring maxspeed change for %N because \"%s\" does not contain a value for \"%s\"",
+    new key[32];
+    TrieGetString(class, ZM_CLASS_ID, key, charsmax(key));
+    logd("Ignoring maxspeed change for %N because %s does not contain a value for \"%s\"",
         id, key, ZM_CLASS_MAXSPEED);
     return;
 #endif
@@ -108,15 +108,15 @@ public zm_onApply(const id) {
 
   new Float: maxspeed = str_to_float(value);
   if (maxspeed < 0.0) {
-    new key[class_prop_key_length + 1];
-    zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    loge("Invalid maxspeed value for class \"%s\". Max speed cannot be less than 0.00: %.2f", key, maxspeed);
+    new key[32];
+    TrieGetString(class, ZM_CLASS_ID, key, charsmax(key));
+    loge("Invalid maxspeed value for class %s. Max speed cannot be less than 0.00: %.2f", key, maxspeed);
     return;
   } else if (maxspeed == 0.0) {
 #if defined DEBUG_MAXSPEED
-    new key[class_prop_key_length + 1];
-    zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    logd("Ignoring maxspeed change for %N because maxspeed of \"%s\" is %.2f", id, key, maxspeed);
+    new key[32];
+    TrieGetString(class, ZM_CLASS_ID, key, charsmax(key));
+    logd("Ignoring maxspeed change for %N because maxspeed of %s is %.2f", id, key, maxspeed);
 #endif
     return;
   }

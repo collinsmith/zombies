@@ -3,18 +3,12 @@
 
 #include "include/classloader/classloader.inc"
 
-#include "include/stocks/param_stocks.inc"
 #include "include/stocks/path_stocks.inc"
-#include "include/stocks/string_utils.inc"
 
 #include "include/zm/zombies.inc"
 
 #if defined ZM_COMPILE_FOR_DEBUG
-  #define DEBUG_NATIVES
-  #define DEBUG_FORWARDS
 #else
-  //#define DEBUG_NATIVES
-  //#define DEBUG_FORWARDS
 #endif
 
 #define EXTENSION_NAME "Class Loader"

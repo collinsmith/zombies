@@ -26,10 +26,7 @@ public zm_onInitExtension() {
       .version = buildId,
       .desc = "Manages custom commands");
 
-  register_dictionary(COMMANDS_DICTIONARY);
-#if defined DEBUG_I18N
-  logd("Registered dictionary \"%s\"", COMMANDS_DICTIONARY);
-#endif
+  zm_registerDictionary(COMMANDS_DICTIONARY);
 }
 
 stock getBuildId(buildId[], len) {

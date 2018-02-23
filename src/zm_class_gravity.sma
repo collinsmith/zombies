@@ -2,11 +2,11 @@
 #include <engine>
 #include <logger>
 
-#include "include/zm/zm_classes.inc"
 #include "include/zm/zombies.inc"
+#include "include/zm/zm_classes.inc"
 
 #if defined ZM_COMPILE_FOR_DEBUG
-  //#define DEBUG_GRAVITY
+  #define DEBUG_GRAVITY
 #else
   //#define DEBUG_GRAVITY
 #endif
@@ -36,7 +36,7 @@ stock getBuildId(buildId[], len) {
 }
 
 public zm_onApply(const id) {
-  new const Class: class = zm_getUserClass(id);
+  new const Trie: class = zm_getUserClass(id);
   if (!class) {
 #if defined DEBUG_GRAVITY
     logd("%N doesn't have a class, resetting", id);
@@ -46,12 +46,12 @@ public zm_onApply(const id) {
   }
   
   static value[8];
-  new const bool: hasProperty = zm_getClassProperty(class, ZM_CLASS_GRAVITY, value, charsmax(value));
+  new const bool: hasProperty = TrieGetString(class, ZM_CLASS_GRAVITY, value, charsmax(value));
   if (!hasProperty) {
 #if defined DEBUG_GRAVITY
-    new key[class_prop_key_length + 1];
-    zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    logd("Ignoring gravity change for %N because \"%s\" does not contain a value for \"%s\"",
+    new key[32];
+    TrieGetString(class, ZM_CLASS_ID, key, charsmax(key));
+    logd("Ignoring gravity change for %N because %s does not contain a value for \"%s\"",
         id, key, ZM_CLASS_GRAVITY);
     return;
 #endif
@@ -59,15 +59,15 @@ public zm_onApply(const id) {
 
   new const Float: gravity = str_to_float(value);
   if (gravity < 0.0) {
-    new key[class_prop_key_length + 1];
-    zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    loge("Invalid gravity value for class \"%s\". Gravity cannot be less than 0.00: %.2f", key, gravity);
+    new key[32];
+    TrieGetString(class, ZM_CLASS_ID, key, charsmax(key));
+    loge("Invalid gravity value for class %s. Gravity cannot be less than 0.00: %.2f", key, gravity);
     return;
   } else if (gravity == 0.0) {
 #if defined DEBUG_GRAVITY
-    new key[class_prop_key_length + 1];
-    zm_getClassProperty(class, ZM_CLASS_NAME, key, charsmax(key));
-    logd("Ignoring gravity change for %N because gravity of \"%s\" is %.2f", id, key, gravity);
+    new key[32];
+    TrieGetString(class, ZM_CLASS_ID, key, charsmax(key));
+    logd("Ignoring gravity change for %N because gravity of %s is %.2f", id, key, gravity);
 #endif
     return;
   }

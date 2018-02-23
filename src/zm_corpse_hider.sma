@@ -1,5 +1,4 @@
 #include <amxmodx>
-#include <amxmodx>
 #include <logger>
 
 #include "include/zm/zombies.inc"

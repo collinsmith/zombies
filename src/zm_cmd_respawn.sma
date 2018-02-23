@@ -12,7 +12,7 @@
 #else
 #endif
 
-#define EXTENSION_NAME "zm_cmd_swap"
+#define EXTENSION_NAME "Respawn Command"
 #define VERSION_STRING "1.0.0"
 
 public zm_onInit() {
@@ -56,15 +56,15 @@ public onRespawn(id, player) {
 
   new bool: respawned = zm_respawn(player, true);
   if (respawned) {
-    zm_printColor(id, "%L", id, "ZM_RESPAWN_SUCCESS", player);
+    zm_printColor(id, "%l", "ZM_RESPAWN_SUCCESS", player);
     if (id != player) {
-      zm_printColor(player, "%L", player, "ZM_RESPAWN_CLIENT");
+      zm_printColor(player, "%l", "ZM_RESPAWN_CLIENT");
     }
     
     logi("%N has been respawned by %N", player, id);
   } else {
     // TODO: Make output prettier
-    zm_printColor(id, "%L", id, "ZM_RESPAWN_FAIL", player);
+    zm_printColor(id, "%l", "ZM_RESPAWN_FAIL", player);
   }
 
   return PLUGIN_HANDLED;
