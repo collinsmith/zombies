@@ -15,6 +15,7 @@
   #define DEBUG_NATIVES
   #define DEBUG_FORWARDS
 #else
+  //#define DEBUG_ASSERTIONS
   //#define DEBUG_NATIVES
   //#define DEBUG_FORWARDS
 #endif
@@ -41,7 +42,7 @@ public zm_onInitExtension() {
   zm_registerExtension(
       .name = EXTENSION_NAME,
       .version = buildId,
-      .desc = "Manages custom commands");
+      .desc = "Manages class menu");
 
   zm_registerDictionary("common.txt");
   registerConsoleCommands();
