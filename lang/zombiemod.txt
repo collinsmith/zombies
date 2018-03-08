@@ -11,6 +11,9 @@ ZM_TEAM_SPECTATOR=SPECTATOR
 ZM_CLASS_MENU_TITLE=Select a class:
 ZM_CLASS_ITEM=%s \d[\y%s\d]
 
+ZM_GUN_MENU_TITLE=Choose your weapons:
+ZM_GUN_ITEM=%s
+
 ZM_SWAP_SUCCESS=%N has been swapped!
 ZM_SWAP_FAIL=%N could not be swapped!
 ZM_SWAP_CLIENT=You have been swapped by an admin!

@@ -268,15 +268,15 @@ Trie: setUserClass(const id, const Trie: class, const bool: immediate = true, co
     return oldClass;
   }
 
-  new retVal = zm_onBeforeClassChanged(id, class, immediate, blockable);
+#define classId key
+  TrieGetStringOrNull(class, ZM_CLASS_ID, classId, charsmax(classId));
+  new retVal = zm_onBeforeClassChanged(id, class, classId, immediate, blockable);
   if (blockable && retVal == PLUGIN_HANDLED) {
     parseResourceFast(blockedReason, charsmax(blockedReason), id);
-    zm_onClassChangeBlocked(id, class, blockedReason);
+    zm_onClassChangeBlocked(id, class, classId, blockedReason);
     return oldClass;
   }
   
-#define classId key
-  TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId));
   zm_onClassChanged(id, class, classId, immediate);
   if (immediate) {
     apply(id, class);
@@ -293,10 +293,10 @@ Trie: setUserClass(const id, const Trie: class, const bool: immediate = true, co
 apply(const id, const Trie: class) {
 #if defined ASSERTIONS
   assert isValidId(id);
-  assert isValidClass(class);
+  assert class == Invalid_Trie || isValidClass(class);
 #endif
 #define classId key
-  TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId));
+  TrieGetStringOrNull(class, ZM_CLASS_ID, classId, charsmax(classId));
   new const Trie: oldClass = pClass[id];
   new oldClassId[32];
   TrieGetStringOrNull(oldClass, ZM_CLASS_ID, oldClassId, charsmax(oldClassId));
@@ -387,14 +387,12 @@ zm_onClassRegistered(const Trie: class, const classId[]) {
 }
 
 // TODO: This is not longer really applicable since zm_onIsClassEnabled
-zm_onBeforeClassChanged(const id, const Trie: class, const bool: immediate, const bool: blockable) {
+zm_onBeforeClassChanged(const id, const Trie: class, const classId[], const bool: immediate, const bool: blockable) {
 #if defined ASSERTIONS
   assert isValidId(id);
   assert class == Invalid_Trie || isValidClass(class);
 #endif
 #if defined DEBUG_FORWARDS
-  new classId[32];
-  TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId));
   logd("Forwarding zm_onBeforeClassChanged(%N, %s, immediate=%s, blockable=%s)",
       id, classId, immediate ? TRUE : FALSE, blockable ? TRUE : FALSE);
 #endif
@@ -412,14 +410,12 @@ zm_onBeforeClassChanged(const id, const Trie: class, const bool: immediate, cons
   return retVal;
 }
 
-zm_onClassChangeBlocked(const id, const Trie: class, const reason[]) {
+zm_onClassChangeBlocked(const id, const Trie: class, const classId[], const reason[]) {
 #if defined ASSERTIONS
   assert isValidId(id);
   assert class == Invalid_Trie || isValidClass(class);
 #endif
 #if defined DEBUG_FORWARDS
-  new classId[32];
-  TrieGetString(class, ZM_CLASS_ID, classId, charsmax(classId));
   logd("Forwarding zm_onClassChangeBlocked(%N, %s, \"%s\")", id, classId, reason);
 #endif
   static handle = INVALID_HANDLE;

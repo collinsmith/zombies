@@ -668,9 +668,6 @@ public bool: native_refresh(plugin, argc) {
   new const id = get_param(1);
   if (!isValidConnected(id)) {
     return false;
-  } else if ((pFlags[id] & PFLAG_ALIVE) != PFLAG_ALIVE) {
-    ThrowIllegalArgumentException("Player with id is not alive: %d", id);
-    return false;
   }
 
   return refresh(id);
